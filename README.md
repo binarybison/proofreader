@@ -110,12 +110,25 @@ Once installed in Claude Code:
 ## Scope
 
 - **In scope**: papers whose contributions are formal — scheduling-theoretic, response-time analysis, network-calculus, (min,+) algebra, real-time queueing, control-theoretic bounds.
-- **Partially in scope**: experimental / systems papers — `evaluate-paper` gives useful quality scores, but the audit/CX skills shine on proofs.
+- **Partially in scope**: experimental / systems papers — `evaluate-paper` gives useful quality scores, but the audit and counterexample skills shine on proofs.
 - **Out of scope**: formal verification in proof assistants (use Lean / Rocq / Isabelle for that). This is *natural-language* proof scrutiny.
+- **Deliberately out of scope: general writing-quality review** — see below.
+
+### Why general writing-quality review is out of scope
+
+Proofreader is intentionally narrow. It does not comment on prose clarity, abstract structure, introduction motivation, related-work coverage, citation formatting, figure design, or the dozens of other dimensions that go into a well-written paper. Three reasons:
+
+1. **Distinctiveness.** Proofreader's value is rigorous formal-proof scrutiny. The moment it also weighs in on prose and exposition, that signal gets diluted — peers stop trusting that a "this paper looks good" verdict means the *proofs* look good, because it now folds in writing quality. A tool that tries to do everything ends up being weakly trusted on each thing.
+
+2. **Composition over monoliths.** Anthropic's `/review` skill (and many third-party writing-quality plugins) already cover general paper review well. The intended workflow is to chain them: run Proofreader for proof rigor → run a general review tool for exposition → revise. You do not need both inside one tool, and forcing them together makes both jobs worse.
+
+3. **Audience.** Proofreader's audience is senior researchers who already have peer review, coauthors, and decades of writing practice for prose-quality feedback. What they cannot easily get is an adversarial reviewer who will catch a wrong-direction `R⁻`/`R⁺` substitution three pages deep in an induction chain, or a constant assumed to equal 1 when the paper's own measurement table reports it ranges to 1.095. That is the gap Proofreader fills.
+
+If you want general writing review, run a separate tool. If you want proof scrutiny, run Proofreader.
 
 ## Provenance
 
-These skills were distilled from a research pipeline ([Ward, 2026, in preparation](https://github.com/bcward/paper-evaluation)) that uses LLMs as first-pass peer reviewers across published RT systems papers. The author-facing variants in this plugin emit human-readable Markdown instead of pipeline-bound JSON, and merge the pipeline's adversarial author-defense + arbiter stages into a single `stress-test-defense` skill.
+These skills were distilled from a research pipeline ([Ward, 2026, in preparation](https://github.com/bcward/paper-evaluation)) that uses LLMs as first-pass peer reviewers across published RT systems papers. The author-facing variants in this plugin emit human-readable Markdown instead of pipeline-bound JSON, and the formal-result inventory and per-result audit are split into separate skills, while the adversarial author-defense and arbiter stages are run as fresh-context subagents — the same structural independence the original pipeline gets from making each role a separate API call.
 
 ## How to cite
 
