@@ -91,21 +91,165 @@ The `find-counterexample` agent assumes the tool can execute Python. Most CLI co
 
 ## Quick start
 
-Once installed in Claude Code:
+The fastest path, end-to-end:
 
 ```text
 > /proofread papers/my-rtss-submission.pdf
 ```
 
-…or, more granularly:
+But every skill, agent, and command is independently invokable. You rarely want the full pipeline — the patterns below cover most real workflows.
+
+## Patterns beyond `/proofread`
+
+### Pattern 1 — Single-theorem counterexample hunt
+
+You suspect one specific result. Skip everything else; just try to break it.
 
 ```text
-> Use evaluate-paper on @papers/my-rtss-submission.pdf in rigorous mode.
-> Now audit the proof of Theorem 3 in adversarial mode.
-> Try to find a counterexample to Lemma 4.
-> Stress-test the audit's claim against Lemma 4 — be the harshest reviewer you can.
-> Write up the finding on Lemma 4 as a LaTeX brief.
+> Use find-counterexample on Theorem 3 of papers/baruah-sies24.pdf.
+>   Theorem 3 states: "<paste statement>"
+>   Proof: "<paste verbatim proof>"
+>   System model: implicit-deadline sporadic task set, m identical processors,
+>     non-preemptive global scheduling.
 ```
+
+The `find-counterexample` agent dispatches to a fresh subagent, identifies attack surfaces from the proof, writes Python verification scripts to your working directory, iterates, and returns one Markdown report. No evaluation, no audit, no orchestrator.
+
+If you've already done the audit by hand and know the suspect step:
+
+```text
+> Use find-counterexample on Theorem 3. The suspicious step is the inductive
+>   chain that substitutes R⁻ for R⁺ on line 4 of the proof. Try parameter
+>   regimes where this gap is amplified.
+```
+
+The agent uses your hint as the primary attack surface and works from there.
+
+### Pattern 2 — Audit one proof you just wrote
+
+You're not sure about a single proof in your own draft. Skip the whole-paper inventory.
+
+```text
+> Use audit-proof in adversarial mode on the proof of Lemma 4 below.
+>   Statement: "<paste>"
+>   Proof: "<paste>"
+>   System model: "<paste>"
+>   Notation: <list>
+```
+
+Returns the issue list with severities. If any issue is `Counterexample-falsifiable? yes` at moderate severity or worse, follow up with Pattern 1.
+
+### Pattern 3 — Stress-test a finding you already have
+
+A coauthor flagged an issue. You want the defender + arbiter chain to decide whether it's real before you edit the paper. Skip the audit and CX stages.
+
+```text
+> /stress-test-defense Theorem 3 mode=adversarial
+>
+> Audit: "<paste audit description from coauthor>"
+> Counterexample (if any): "<paste or 'none'>"
+> Paper: papers/my-draft.pdf
+```
+
+This dispatches the `defend-finding` subagent first (fresh context, instructed to mount the strongest legitimate defense), then dispatches `arbitrate-finding` as a separate subagent that reads the defense as a document and renders an independent verdict. You get both sides plus a verdict with confidence and flaw taxonomy.
+
+### Pattern 4 — First-pass triage only
+
+You want quality scores and a theorem inventory to decide where to submit, but not the deep audit yet.
+
+```text
+> Use evaluate-paper on @papers/my-draft.pdf in rigorous mode.
+```
+
+Returns the report with per-result verdicts. Stop here if nothing flagged worse than `likely_correct`. Run `audit-proof` on the items that came back `uncertain` or worse.
+
+### Pattern 5 — Counterexample against a competitor's claim
+
+You're writing a paper and want to argue that a prior work's bound is loose (or unsafe). Use Proofreader on *their* paper, not yours.
+
+```text
+> Use find-counterexample on Equation 7 of papers/prior-work-ecrts23.pdf.
+>   The paper claims this is a safe upper bound on response time under
+>   global EDF with self-suspensions. I think it omits the self-suspension
+>   delay penalty entirely; try task sets with long suspensions.
+```
+
+If the agent finds a counterexample, run `writeup-finding` to draft the LaTeX brief you'd put in your related-work section.
+
+### Pattern 6 — Generate the writeup from existing data
+
+You already did the audit and built the counterexample manually. You just want the brief.
+
+```text
+> Use writeup-finding in latex format.
+>   Result: Theorem 3 of my paper.
+>   Audit summary: "<paste>"
+>   Counterexample parameters: { τ₁: C=2 T=5 D=5, τ₂: C=3 T=7 D=7 }
+>   Verification: ran 100k-cycle simulation; observed deadline miss at t=14.
+>   Decided: revise theorem to add precondition D_i ≤ T_i / 2.
+```
+
+Returns a compilable LaTeX brief. Useful as a starting draft for an erratum, an internal memo, or a paper revision note.
+
+### Pattern 7 — Audit chained with stress-test, skipping CX
+
+The audit found a proof-style critique (gaps, unclear steps) but no falsifiable claim. CX search would waste effort; you still want the adversarial review.
+
+```text
+> Use audit-proof on Lemma 2 in adversarial mode.
+>   <inputs>
+> The audit returned likely_flawed but all issues are Counterexample-falsifiable? no.
+> Run /stress-test-defense on this audit with no counterexample.
+```
+
+The defender will focus on whether the gaps are presentation-only or load-bearing (apply the four-question filter from `audit-proof`); the arbiter will weigh that against the audit's claims.
+
+### Pattern 8 — Defense-only, anticipate referee objections
+
+You want to know how a sympathetic but honest reader would defend your paper against a likely referee objection. Skip the arbiter step.
+
+```text
+> Use defend-finding on the following hypothetical objection:
+>   "Theorem 5's proof implicitly assumes the schedule is work-conserving,
+>    which contradicts the paper's claim to handle non-work-conserving policies."
+> Paper: @papers/my-draft.pdf
+```
+
+The defender returns the strongest legitimate defense plus an `acknowledged flaws` section if any of the objection lands. Useful pre-submission to decide whether to harden the proof or revise the claim.
+
+### Pattern 9 — Parallel audit of multiple independent theorems
+
+For a paper with several theorems you want audited independently:
+
+```text
+> Audit Theorem 3, Theorem 5, and Lemma 7 of @papers/my-draft.pdf in
+>   adversarial mode. Run them in parallel where possible.
+```
+
+Each audit runs inline in the main conversation (so you can follow along), but Claude Code dispatches independent calls concurrently where the tool allows.
+
+### Pattern 10 — Pipeline-parity mode
+
+You want behavior that matches the original [paper_evaluation](https://github.com/bcward/paper-evaluation) research pipeline as closely as possible (aggressive Phase-1 flagging, conservative arbiter):
+
+```text
+> /proofread papers/my-draft.pdf mode=adversarial
+```
+
+Adversarial mode tightens `evaluate-paper`'s thresholds to match the original pipeline's "cast a wide net" Phase 1 stance, and instructs the arbiter to break ties against the paper. Use this when you want the harshest plausible reading of your own work before submission.
+
+## Composition with other tools
+
+Proofreader is deliberately scoped to formal-proof scrutiny (see [Scope](#scope) below). For a complete pre-submission pass, chain it with a general writing-quality review:
+
+```text
+> /proofread papers/my-draft.pdf
+> [review confirmed findings, revise the paper]
+> /review papers/my-draft.pdf            # Anthropic's general /review skill
+> [revise prose, organization, related work]
+```
+
+Run Proofreader first because correctness issues usually require larger revisions than prose issues, and prose review on a still-changing draft wastes effort.
 
 ## Scope
 
