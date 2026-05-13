@@ -71,9 +71,9 @@ Work through these systematically. For each item, either record an issue or note
 
 ## Common flaws — empirical patterns
 
-These are mechanisms observed in 69 confirmed flaws across a corpus of published real-time-systems papers. They are not exhaustive, but they reflect what *actually goes wrong* in the field rather than what generically *could* go wrong. Use them as a checklist alongside the generic checklist above.
+These are mechanisms we have observed repeatedly in confirmed flaws across published real-time-systems papers. They are not exhaustive, but they reflect what *actually goes wrong* in the field rather than what generically *could* go wrong. Use them as a checklist alongside the generic checklist above.
 
-### Pattern family 1 — Incorrect formulas (most common, ~33% of confirmed flaws)
+### Pattern family 1 — Incorrect formulas (very common)
 
 - **Sign or condition inversion** — the proof writes `β > q` when the algorithm uses `β ≤ q`; the printed bound has a sign error inconsistent with the derivation.
 - **Wrong-direction substitution in inductive chains** — substituting `R⁻` for `R⁺` (or any lower-bound term where the chain needs an upper bound). The inductive hypothesis gives a `+` bound; the chain then uses a `-` bound that is strictly smaller.
@@ -83,7 +83,7 @@ These are mechanisms observed in 69 confirmed flaws across a corpus of published
 - **One-sided pruning rules** — an algorithm prunes dominated states forward but not backward (or vice versa). Check that domination is closed in both directions.
 - **Wrong denominator / missing structural parameter** — e.g., `⌊(D − ⌈n/m⌉·E) / (m−1)⌋` where `(m−1)` does not correspond to any meaningful structural quantity. Ask whether each denominator is justified by a counting argument.
 
-### Pattern family 2 — Proof gaps (~25% of confirmed flaws — but see the calibration filter below)
+### Pattern family 2 — Proof gaps (common — but see the calibration filter below)
 
 - **Implicit assumptions that fail in edge cases** — proof claims "the extra release can always be credited as a skip" but this fails when the release pattern is degenerate.
 - **Set-inclusion claims that are provably false** — `A ⊆ B` stated as a step but exhibitable as false on a concrete task set.
@@ -91,7 +91,7 @@ These are mechanisms observed in 69 confirmed flaws across a corpus of published
 - **LP-monotonicity / iteration conflation** — proof claims monotone decrease of an objective across iterations, but re-linearization can increase it.
 - **Dangling references** — proof cites "Lemma 4" that does not appear in the paper. Verify every cross-reference resolves.
 
-### Pattern family 3 — Missing preconditions (~20% of confirmed flaws)
+### Pattern family 3 — Missing preconditions (common)
 
 - **Strengthened conditions used silently** — theorem says "backlogged", proof needs "continuously backlogged"; lemma's monotonicity assumption described as "ideal" in prose rather than stated as a precondition.
 - **Structural facts stated where preconditions belong** — "at most one shared switch" treated as a geometric fact when it's actually a precondition on the routing topology.
@@ -122,7 +122,7 @@ Distinguish *real* notation flaws (above) from *typesetting* errors (numerator/d
 
 ## False-positive calibration filter (apply before flagging `likely_flawed` for a proof gap)
 
-In our corpus, **half of all false-positive arbiter verdicts were spurious `proof_gap` flags**: the audit perceived a gap that the paper actually covered through one of the channels below. Before classifying anything as `likely_flawed` based on a missing step, **explicitly check these four questions**:
+The single largest source of audit false positives is **spurious `proof_gap` flags** — the audit perceives a gap that the paper actually covers through one of the channels below. Before classifying anything as `likely_flawed` based on a missing step, **explicitly check these four questions**:
 
 1. **Is the proof deferred to an external source?**
    - Companion technical report cited in the bibliography.

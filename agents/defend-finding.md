@@ -33,7 +33,7 @@ If you identify referenced material that could resolve the issue, **explicitly f
 
 ### Common deferral patterns to look for
 
-In our corpus, **half of all false-positive audit findings turned out to be misidentified proof-gaps** where the missing step was in fact covered by one of these channels. Survey them systematically for every audit you defend:
+A large fraction of audit false positives turn out to be **misidentified proof-gaps** where the missing step is in fact covered by one of these channels. Survey them systematically for every audit you defend:
 
 **Deferred-proof channels**
 - A companion technical report cited in the bibliography (often with the same authors and a publication date close to this paper). Look for [TR-XX], or for `arxiv:` / institutional repository URLs.
