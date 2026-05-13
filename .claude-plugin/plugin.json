@@ -1,0 +1,11 @@
+{
+  "name": "rt-proofreader",
+  "version": "0.1.0",
+  "description": "Rigorous self-proofreading for real-time systems papers: evaluate quality, audit proofs, hunt counterexamples, stress-test your own defense, and draft a finding writeup. Author-facing.",
+  "author": {
+    "name": "Bryan C. Ward",
+    "email": "bryan.ward@vanderbilt.edu"
+  },
+  "homepage": "https://github.com/bcward/rt-proofreader",
+  "keywords": ["real-time-systems", "scheduling", "proofreading", "academic-writing", "proof-audit"]
+}
