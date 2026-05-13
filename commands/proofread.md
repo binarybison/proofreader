@@ -1,35 +1,89 @@
 ---
-description: End-to-end rt-proofreader pass on a paper. Evaluates, audits flagged proofs, hunts counterexamples, stress-tests findings, and writes them up.
-argument-hint: <paper.pdf> [mode=rigorous|adversarial]
+description: End-to-end Proofreader pass on a paper. Evaluates, audits flagged proofs (one per result), hunts counterexamples in fresh subagents, stress-tests findings via fresh defender + arbiter subagents, and writes them up.
+argument-hint: <paper.pdf> [mode=rigorous|adversarial] [format=markdown|latex]
 ---
 
 # /proofread
 
-Run the full rt-proofreader pipeline on a single paper. The user's argument is `$ARGUMENTS` (typically a path to a PDF or a paper title). If the argument includes `mode=adversarial`, use adversarial mode throughout; otherwise default to `rigorous`.
+Run the full Proofreader pipeline on a single paper. User argument: `$ARGUMENTS` (typically a path to a PDF or a paper title). Parse out optional `mode=adversarial` (default `rigorous`) and `format=latex` (default `markdown` for writeup-finding outputs).
 
-## Pipeline
+## Pipeline structure
 
-Execute these in order, and only proceed to the next stage if the previous stage produced material for it to operate on:
+| Stage | Form | Granularity | Why |
+|---|---|---|---|
+| 1. evaluate-paper | inline skill | 1× per paper | Breadth-first inventory of every formal result. Shared context with the orchestrator. |
+| 2. audit-proof | inline skill | **1× per flagged result** | Deep audit; mirrors the original pipeline's per-result invocation. Stays in main context so the user can follow along. |
+| 3. find-counterexample | **subagent** | 1× per likely-flawed audit | Long, agentic, Python-heavy. Isolated to keep its noise out of main context. |
+| 4. stress-test-defense | **two subagents** | 1× per result with CX or `likely_flawed`+ audit | Defender and arbiter each run in fresh isolated contexts for genuine independence. |
+| 5. writeup-finding | inline skill | 1× per confirmed finding | Synthesizes prior outputs already in main context into the final brief. |
 
-1. **`evaluate-paper`** on `$ARGUMENTS`.
-   - Output: the per-result list with verdicts.
-   - Identify the set of *flagged* results: those whose verdict is worse than `correct` (i.e. `likely_correct`, `uncertain`, `likely_flawed`, or `flawed`).
+## Execution
 
-2. **`audit-proof`** on each flagged result.
-   - For each, produce the audit report. Identify which audits have at least one issue with `severity ≥ moderate` and `Counterexample-falsifiable? yes`.
+### Cost-discipline preamble
 
-3. **`find-counterexample`** on each result whose audit landed at `likely_flawed` or `flawed`.
-   - For results with `likely_flawed` but no falsifiable issues, skip this stage and note in the final report that the issue is expository.
+Before launching, give the user a one-line plan and wait for confirmation, unless the user invoked with explicit `confirm`:
 
-4. **`stress-test-defense`** on each result with a constructed counterexample, *and* on each `likely_flawed` audit even if no counterexample was found.
-   - Skip purely-expository `uncertain` audits.
+> *"Plan: evaluate the paper, audit ~N likely-flagged proofs (one call each), hunt counterexamples on ~M (in subagents), stress-test confirmed findings via fresh defender + arbiter subagents, write up. Estimated 30–90 minutes wall time, 200k–800k tokens depending on paper length and difficulty. Proceed?"*
 
-5. **`writeup-finding`** on each result the stress-test confirmed as `true_positive` or `likely_true_positive`.
-   - Default to Markdown for the orchestrator (LaTeX briefs are usually written up later, manually). Override with `format=latex` in the argument list.
+### Stage 1: evaluate-paper
 
-## Final report
+Invoke the `evaluate-paper` skill on `$ARGUMENTS`. This is an inline call — the result lives in the main conversation context.
 
-After all stages, assemble a top-level `proofreader-report.md` in the user's working directory with this structure:
+From the output, identify *flagged* results — those with `verdict ∈ {uncertain, likely_flawed, flawed}`. This matches the original pipeline's escalation threshold. In `adversarial` mode, also escalate `likely_correct` to catch issues the rigorous threshold would miss.
+
+Announce: *"Stage 1 complete: N total results, K flagged for audit."*
+
+### Stage 2: audit-proof per flagged result
+
+For **each** flagged result, invoke the `audit-proof` skill inline. One audit per result, mirroring the original pipeline's per-result invocation.
+
+Inputs for each audit:
+- The result statement.
+- The verbatim proof text (extracted by Stage 1).
+- The system model and notation (extracted by Stage 1).
+- The Phase-1 concern level and notes.
+
+Audits stay in the main conversation. They're cheap to display and the user benefits from following along.
+
+Announce progress: *"Stage 2: auditing Theorem 3 (1/K)…"* as you go.
+
+After all audits, identify:
+- **CX candidates**: audits with verdict `likely_flawed` or `flawed`, *and* at least one issue with `Counterexample-falsifiable? yes` and `severity ≥ moderate`.
+- **Stress-test-only candidates**: audits with verdict `likely_flawed` but no falsifiable issues — defender + arbiter still useful, but skip CX.
+- **Expository-only**: audits with verdict `uncertain` and no falsifiable issues — recommend proof rewrite, skip the rest.
+
+### Stage 3: find-counterexample (subagent, per CX candidate)
+
+For each CX candidate, dispatch the `find-counterexample` agent via the Agent tool. **Each is a separate subagent invocation** — independent investigations, independent contexts.
+
+If multiple CX candidates exist and they're truly independent, dispatch them in parallel (one Agent tool call per candidate in the same message). If there's only one, dispatch it alone.
+
+Each subagent returns a Markdown counterexample report. Save it in the conversation context for downstream stages.
+
+Announce: *"Stage 3: dispatched N counterexample subagents…"* and report each result as it returns.
+
+### Stage 4: stress-test-defense (defender + arbiter subagents)
+
+For each result with either a constructed counterexample or a `likely_flawed` audit:
+
+1. Dispatch the `defend-finding` subagent with: full paper text, audit, counterexample (if any), mode.
+2. **After** the defender returns, dispatch the `arbitrate-finding` subagent with: full paper text, audit, defense, counterexample (if any), mode.
+
+The arbiter must be a separate Agent call — do NOT pass the defender's intermediate context, only its final Markdown output.
+
+If multiple stress-tests are independent, defenders for different results can run in parallel; arbiters must wait for their respective defenders first.
+
+Announce: *"Stage 4: stress-testing N findings…"* and report each verdict.
+
+### Stage 5: writeup-finding (inline, per confirmed finding)
+
+For each result the arbiter verdicted as `true_positive` or `likely_true_positive`, invoke the `writeup-finding` skill inline. Use the format specified in the user's argument (default Markdown for the orchestrator).
+
+Save each writeup to `finding-<result-label>.<ext>` in the user's working directory.
+
+### Final assembly
+
+Produce a top-level `proofreader-report.md` in the working directory:
 
 ```markdown
 # Proofreader Report: <paper title>
@@ -49,30 +103,23 @@ For each `true_positive` / `likely_true_positive`:
 
 ## Open questions
 
-For each `inconclusive` stress-test verdict:
-- **<Result label>**: what evidence would resolve it.
+For each `inconclusive` arbiter verdict:
+- **<Result label>**: what evidence would resolve it (typically a reference to retrieve).
 
 ## Dismissed concerns
 
 For each `likely_false_positive` / `false_positive`:
-- **<Result label>**: brief reason the audit's concern did not hold up. Useful so the author doesn't accidentally re-flag this later.
+- **<Result label>**: brief reason the audit's concern did not hold up. Useful record so future-you doesn't accidentally re-flag.
 
-## Audits without falsifiable concerns (proof-style issues)
+## Audits without falsifiable concerns
 
-For each result flagged in evaluate-paper but where the audit found only proof-style/expository issues:
-- **<Result label>**: list the suggested proof-rewrites.
+For each result flagged in Stage 1 but where Stage 2 found only proof-style/expository issues:
+- **<Result label>**: list the suggested proof rewrites. No CX or stress-test was run for these.
 ```
 
-## Communication during the run
+## Communication discipline
 
-- Announce each stage before you begin it ("Stage 2/5: auditing 4 flagged proofs"). Keep updates terse.
-- If a stage produces zero candidates for the next stage, skip the next stage and say so.
-- If the user's tool environment cannot execute Python, the `find-counterexample` stage will produce verifiable scripts rather than verified counterexamples — note this in the final report.
-
-## Cost discipline
-
-A full run on a moderately complex paper can consume substantial tokens (each audit, CX hunt, and stress-test is its own long-context call). Before launching, give the user a 1-line plan:
-
-> *"Plan: evaluate the paper, audit ~5 likely-flagged proofs, hunt counterexamples on ~2, stress-test, write up. Estimated 30–60 minutes wall time, 100k–500k tokens depending on paper length and difficulty. Proceed?"*
-
-…then wait for confirmation unless the user invoked `/proofread` with an explicit `confirm` argument.
+- Announce each stage before starting it. Keep updates terse.
+- If a stage produces zero candidates for the next stage, skip and say so.
+- If a subagent fails or returns an error, surface it; do not silently move on.
+- If the user's tool doesn't support subagents (Stages 3 and 4), warn the user that independence will be degraded and offer to run those stages inline with a clear `independence: degraded` flag in the report.

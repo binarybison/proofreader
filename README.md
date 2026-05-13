@@ -8,21 +8,42 @@ A set of LLM skills for **rigorously self-proofreading** real-time systems (and 
 
 ## What it does
 
-Five skills, chainable:
+Three **inline skills** (run in the main conversation), three **subagents** (fresh isolated context), and two **slash-command orchestrators**.
+
+### Inline skills
 
 | Skill | What it does |
 |---|---|
-| `evaluate-paper` | First-pass read: quality scores, flags, list of all theorems/lemmas with per-result verdicts. |
-| `audit-proof` | Deep audit of one theorem or lemma. Lists issues by severity. |
-| `find-counterexample` | Agentic counterexample hunt for a flagged result. Writes and runs Python to verify. |
-| `stress-test-defense` | For a flagged result, generates the strongest defense AND the strongest rebuttal, then renders an honest verdict. Use this as a sanity check before you dismiss an issue. |
-| `writeup-finding` | Produces a clean LaTeX or Markdown brief of a finding — useful to share with coauthors or to keep as a record. |
+| `evaluate-paper` | First-pass read: quality scores, flags, complete inventory of theorems/lemmas with per-result verdicts. One call per paper. |
+| `audit-proof` | Deep audit of one theorem or lemma. Lists issues by severity. The orchestrator calls this **once per flagged result** (mirroring the original pipeline). |
+| `writeup-finding` | Produces a clean LaTeX or Markdown brief of a finding — share with coauthors or keep as a record. |
 
-Plus one orchestrator:
+### Subagents
+
+These run in fresh, isolated contexts. The main conversation dispatches them and receives a single report back. The structural independence matters for correctness (see [Why subagents?](#why-subagents) below).
+
+| Agent | What it does |
+|---|---|
+| `find-counterexample` | Adversarial CX hunt for a flagged result. Writes and runs Python to verify. Isolated context keeps the noisy iteration out of the main conversation. |
+| `defend-finding` | Mounts the strongest legitimate defense of the paper against an audit finding. Fresh context means the defender has no idea about the eventual arbiter — and no incentive to soften its case in anticipation. |
+| `arbitrate-finding` | Impartial adjudicator. Reads paper + audit + defense (+ optional counterexample) with **fresh eyes** and renders a true/false-positive verdict with a flaw taxonomy. |
+
+### Slash commands
 
 | Command | What it does |
 |---|---|
-| `/proofread <paper.pdf>` | Runs `evaluate-paper` → `audit-proof` (on every flagged result) → `find-counterexample` (on every `likely_flawed` audit) → `stress-test-defense` → `writeup-finding`. Single Markdown report at the end. |
+| `/stress-test-defense <result>` | Dispatches the defender subagent, then the arbiter subagent, then synthesizes their outputs. Use when you want to gut-check whether an audit finding is real. |
+| `/proofread <paper.pdf>` | Full pipeline: `evaluate-paper` → `audit-proof` (per flagged result) → `find-counterexample` (per likely-flawed audit, in subagents) → `defend-finding` + `arbitrate-finding` (in subagents) → `writeup-finding`. Single Markdown report at the end. |
+
+### Why subagents?
+
+The defender, arbiter, and counterexample-hunter are subagents (not inline skills) for one reason: **structural independence**. The original paper-evaluation pipeline got independence for free by making each role a separate API call; the plugin recreates that property via fresh-context subagents.
+
+- The **defender** has an asymmetric incentive to defend. If it knew the arbiter would later rebut it in the same context, it would soften its case. Fresh context preserves the asymmetric incentive.
+- The **arbiter** brings genuine independent judgment because it never produced the audit *or* the defense — it reads both as documents.
+- The **counterexample hunt** is long, iterative, and Python-heavy. Isolating it keeps the noise out of the main conversation.
+
+If your tool doesn't support subagents (Codex/Gemini in some configurations), the orchestrators degrade gracefully and mark the report `independence: degraded`.
 
 Every skill has a **`mode`** knob:
 
@@ -52,19 +73,21 @@ git clone https://github.com/binarybison/proofreader.git ~/proofreader
 /plugins install proofreader@binarybison
 ```
 
-After install, the five skills auto-load on relevant prompts, and `/proofread` is available as a slash command.
+After install, skills auto-load on relevant prompts; subagents are dispatchable by the orchestrators or by name; `/proofread` and `/stress-test-defense` are available as slash commands.
 
 ### Codex CLI, Gemini CLI, or any other LLM tool
 
-The skill files are plain Markdown with YAML frontmatter. To use one in another tool:
+The skill, agent, and command files are all plain Markdown with YAML frontmatter. To use one in another tool:
 
-1. Open `skills/<skill-name>/SKILL.md`.
+1. Open the relevant file: `skills/<name>/SKILL.md`, `agents/<name>.md`, or `commands/<name>.md`.
 2. Copy the body (everything after the `---` frontmatter block) into your tool as a system or user prompt.
-3. Append your input (paper text, proof text, etc.) where the body's `## Inputs` section indicates.
+3. Append your inputs (paper text, audit, etc.) where the body indicates.
 
-For tools that support custom prompts as files (e.g. Codex `--prompt-file`, Gemini `@file`), reference the `SKILL.md` directly — the YAML frontmatter is benign and most tools ignore it.
+For tools that support custom prompts as files (Codex `--prompt-file`, Gemini `@file`), reference the file directly — the YAML frontmatter is benign and most tools ignore it.
 
-The `find-counterexample` skill assumes the tool can execute Python. Most CLI coding tools support this; for tools that don't, the skill produces a Python script you can run yourself.
+**Subagent independence in tools without subagents**: the defender / arbiter / counterexample-hunter rely on running in *separate, fresh contexts* — that's how the plugin matches the original paper-evaluation pipeline's quality on adversarial review. If your tool doesn't have a subagent primitive, the canonical workaround is to **open separate conversations** for `defend-finding` and `arbitrate-finding`, paste the agent body into each, and run them sequentially. Running them inline in one chat works as a fallback but is structurally weaker — mark such results `independence: degraded` in your writeup.
+
+The `find-counterexample` agent assumes the tool can execute Python. Most CLI coding tools support this; for tools that don't, the agent produces a Python script you can run yourself.
 
 ## Quick start
 
