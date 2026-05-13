@@ -1,4 +1,6 @@
-# rt-proofreader
+# Proofreader
+
+> **P**roofreader **R**easoning **O**n **O**versight **F**laws — **R**igorous **E**xamination **A**nd **D**isproof **E**valuation **R**outine
 
 A set of LLM skills for **rigorously self-proofreading** real-time systems (and other formal) papers before you submit them. Designed for the author who wants to find the holes in their own proofs before a reviewer does.
 
@@ -38,16 +40,16 @@ This repo is a Claude Code plugin. Two ways to install:
 **From a local clone** (fastest for iterating on the plugin):
 
 ```bash
-git clone https://github.com/bcward/rt-proofreader.git ~/rt-proofreader
+git clone https://github.com/binarybison/proofreader.git ~/proofreader
 # Then from inside any Claude Code project:
-/plugins install ~/rt-proofreader
+/plugins install ~/proofreader
 ```
 
 **From a marketplace** (once published):
 
 ```bash
-/plugins marketplace add bcward/rt-proofreader
-/plugins install rt-proofreader@bcward
+/plugins marketplace add binarybison/proofreader
+/plugins install proofreader@binarybison
 ```
 
 After install, the five skills auto-load on relevant prompts, and `/proofread` is available as a slash command.
@@ -92,6 +94,24 @@ Once installed in Claude Code:
 
 These skills were distilled from a research pipeline ([Ward, 2026, in preparation](https://github.com/bcward/paper-evaluation)) that uses LLMs as first-pass peer reviewers across published RT systems papers. The author-facing variants in this plugin emit human-readable Markdown instead of pipeline-bound JSON, and merge the pipeline's adversarial author-defense + arbiter stages into a single `stress-test-defense` skill.
 
+## How to cite
+
+If `proofreader` contributes to a paper of yours — whether by catching an issue you fixed before submission, or as the methodology in a paper-about-papers — please cite the source pipeline:
+
+```bibtex
+@misc{ward2026proofreader,
+  author = {Ward, Bryan C.},
+  title  = {{Proofreader}: {R}easoning {O}n {O}versight {F}laws --
+            {R}igorous {E}xamination {A}nd {D}isproof {E}valuation {R}outine},
+  year   = {2026},
+  note   = {LLM-assisted self-proofreading for real-time systems papers;
+            derived from the paper-evaluation pipeline},
+  url    = {https://github.com/binarybison/proofreader}
+}
+```
+
+Replace this entry with the formal venue citation once the underlying methodology paper is published.
+
 ## License
 
-MIT. Pull requests welcome.
+MIT — see [LICENSE](LICENSE). Pull requests welcome.

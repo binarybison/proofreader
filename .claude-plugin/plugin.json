@@ -1,11 +1,11 @@
 {
-  "name": "rt-proofreader",
+  "name": "proofreader",
   "version": "0.1.0",
-  "description": "Rigorous self-proofreading for real-time systems papers: evaluate quality, audit proofs, hunt counterexamples, stress-test your own defense, and draft a finding writeup. Author-facing.",
+  "description": "Proofreader: Reasoning On Oversight Flaws — Rigorous Examination And Disproof Evaluation Routine. Author-facing self-proofreading for real-time systems (and other formal) papers: evaluate quality, audit proofs, hunt counterexamples, stress-test your own defense, and draft a finding writeup.",
   "author": {
     "name": "Bryan C. Ward",
     "email": "bryan.ward@vanderbilt.edu"
   },
-  "homepage": "https://github.com/bcward/rt-proofreader",
+  "homepage": "https://github.com/binarybison/proofreader",
   "keywords": ["real-time-systems", "scheduling", "proofreading", "academic-writing", "proof-audit"]
 }
