@@ -31,6 +31,35 @@ The audit had access only to the main paper text and possibly an incomplete view
 
 If you identify referenced material that could resolve the issue, **explicitly flag it** with a retrieval priority — the arbiter and the human investigator need to know what to fetch.
 
+### Common deferral patterns to look for
+
+In our corpus, **half of all false-positive audit findings turned out to be misidentified proof-gaps** where the missing step was in fact covered by one of these channels. Survey them systematically for every audit you defend:
+
+**Deferred-proof channels**
+- A companion technical report cited in the bibliography (often with the same authors and a publication date close to this paper). Look for [TR-XX], or for `arxiv:` / institutional repository URLs.
+- "Extended version" or "forthcoming complete version" notices, typically in a footnote on page 1 or in the conclusions.
+- An institutional appendix URL (e.g., `cs.unc.edu/~baruah/...`, `mpi-sws.org/...`, ETH Zurich, MIT-LCS).
+- A "see [Author 20XX] for the full proof" citation immediately following the result statement or proof sketch.
+
+**Standard results commonly invoked without restatement** — if the audit complained that a step is "unjustified" but the step is one of these, the audit is wrong:
+- Liu–Layland / Dertouzos (EDF optimality on uniprocessor implicit-deadline tasks).
+- McNaughton's wrap-around scheduling rule.
+- Chetto / Silly-Chetto processor-demand inequalities.
+- Bertogna's interference bound; Davis–Burns response-time recurrence.
+- Baruah's demand-bound function (DBF) and supply-bound function (SBF) calculus.
+- Standard probability inequalities (Hoeffding, Chernoff, Markov, Jensen).
+- Standard algebraic identities (telescoping, geometric series, Cauchy-Schwarz, AM-GM).
+- (min,+) algebra identities (idempotency, sub-additivity of convolution).
+
+**Definitions earlier in the paper** that constrain the audit's counterexample
+- "Constrained-deadline" vs "implicit-deadline" vs "arbitrary-deadline" task models — the audit may have constructed a counterexample with `D_i > T_i` when the paper assumes `D_i ≤ T_i`.
+- Work-conserving vs non-work-conserving scheduling.
+- "Synchronously released" vs "arbitrarily phased" task sets.
+- "Continuously backlogged" vs "intermittently backlogged" servers.
+- "Bound" vs "unbound" tasks (in some terminologies); "warm" vs "cold" cache states; "preemptive at job boundaries" vs "fully preemptive".
+
+**Cited prior-work preconditions** — when the paper invokes a result from prior work, that result has its own preconditions. The audit may have constructed a counterexample that violates one. For each prior-work invocation, identify what preconditions the cited result requires and check whether the audit's counterexample respects them.
+
 ## Mode
 
 The dispatcher will pass a mode. Default is `rigorous`.

@@ -73,11 +73,25 @@ Use `correct` *only* when the proof is fully spelled out — no skipped steps, n
 
 ### What counts as a concern
 
+Generic concerns:
 - Steps that skip non-trivial reasoning ("it is easy to see", "by a similar argument", "clearly").
 - Inductive proofs where the base case is unstated or the inductive step doesn't use the hypothesis.
 - Boundary cases not addressed (empty task sets, zero-utilization, degenerate inputs, strict-vs-non-strict inequalities).
 - Assumptions introduced mid-proof that aren't in the theorem statement.
 - Cited results from prior work whose preconditions may not hold under this paper's model.
+
+Specific red flags observed in confirmed flaws across a corpus of published RT-systems papers (these are the patterns most often associated with real errors — give them extra scrutiny):
+
+- **A safety bound that drops a term across an algebraic simplification** — ceiling functions, jitter, blocking, context-switch costs that disappear from one equation to the next without justification. 33% of confirmed flaws are incorrect-formula errors of this kind. Flag any equation whose printed form has fewer terms than the equation it claims to follow from.
+- **A constant assumed equal to 1 (or another nominal value) when the paper's own data shows variability** — e.g., a formula assumes γ = 1 while a measurement table reports γ up to 1.095. Cross-check assumed constants against any measurement tables.
+- **A theorem stated as equality where the proof argues only one direction** — "A = B" but the proof only shows "A ≤ B" with no symmetric argument.
+- **A property described as "ideal" or "desired" rather than "assumed"** — when the proof later uses the property as a precondition, this is a hidden precondition. 20% of confirmed flaws are missing-precondition errors.
+- **"Almost surely" or "with high probability" appearing in the proof but not in the theorem statement** — the theorem claims more than the proof establishes.
+- **Split sub-jobs, reconvergent DAG paths, or multiple maxima treated as independent** when the underlying structure introduces coupling. False-independence flaws are subtle and RT-specific.
+- **An informal claim contradicted by another informal claim elsewhere in the paper** — particularly common in systems papers where prose summaries drift from the algorithmic detail.
+- **Off-by-one in a quantifier** — `∀ l > 1` versus `∀ l > 0` is the canonical example. Test the boundary value mentally.
+
+When you see one of these patterns, escalate the result's verdict to `uncertain` or worse, even if the proof "reads well". These patterns are highly correlated with downstream true-positive arbiter verdicts in the source corpus.
 
 ## Output Format
 
