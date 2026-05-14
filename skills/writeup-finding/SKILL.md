@@ -43,10 +43,11 @@ Lead with the *finding*, not the methodology. State:
 
 - What is wrong.
 - Which result is affected.
-- The practical impact (safety, optimality, or expository only).
+- **Whether the issue is in the result or only in the proof.** This is a critical distinction. If the audit's two-axis decomposition shows `result: likely_true` + `proof: unsound_but_recoverable`, say so plainly: *"The proof of Theorem 3 contains a load-bearing error, but the result itself is true via [alternative argument]. The author should rewrite the proof; no erratum is required for the claim."*
+- The practical impact (safety, optimality, expository only, or proof-technique-only).
 - If a counterexample exists, mention it here in one sentence.
 
-If the safety impact is limited (e.g. the issue affects optimality but not safety), state this explicitly. The reader should know in 30 seconds whether to panic.
+If the safety impact is limited (e.g. the issue affects optimality but not safety, or affects only the proof technique while the result stands), state this explicitly. The reader should know in 30 seconds whether to panic.
 
 ### 3. Background (2–3 paragraphs)
 

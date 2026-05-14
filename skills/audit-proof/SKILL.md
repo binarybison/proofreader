@@ -150,6 +150,61 @@ The single largest source of audit false positives is **spurious `proof_gap` fla
 
 **Rule of thumb**: if two or more of (1)–(3) apply, the correct verdict is `uncertain`, not `likely_flawed`. Reserve `likely_flawed` for gaps that are *load-bearing*, *not covered by deferred material or standard results*, and *plausibly falsifiable*.
 
+## Two-axis decomposition: claim correctness vs. proof soundness
+
+A common and important class of audit findings is **"the proof is unsound, but the result happens to be true."** The verdict scale alone cannot express this. Always answer both of these questions explicitly, then map to a verdict:
+
+### Axis A — Result truth
+
+Independently of how the proof argues for it: do you believe the theorem's *statement* is true?
+
+- **`true`** — You can sketch an alternative argument that establishes the result (e.g., it follows from a well-known prior result the paper invokes; you mentally verified the result on representative instances).
+- **`likely_true`** — Plausible but not independently verified; you have not constructed a counterexample after a serious attempt.
+- **`uncertain`** — You cannot tell whether the result is true.
+- **`likely_false`** — Concrete reasons (boundary cases, edge inputs) suggest the result fails, but you have not exhibited a counterexample.
+- **`false`** — A counterexample exists (in this audit or elsewhere).
+
+### Axis B — Proof soundness
+
+Independently of whether the result is true: does the *published proof argument* validly establish it?
+
+- **`sound`** — Every step follows; no skipped reasoning; preconditions of cited lemmas hold; quantifiers and case analysis complete.
+- **`mostly_sound`** — Minor expository gaps that any expert reader closes mentally; not load-bearing.
+- **`unsound`** — One or more steps are invalid: false set-inclusion, wrong-direction substitution, missing case, false independence, dropped term, dimensional inconsistency, dangling reference, etc. The published reasoning does not establish the result.
+- **`unsound_but_recoverable`** — Same as `unsound`, but a different known argument *does* establish the result (e.g., the paper attempts a novel proof technique that fails, but the conclusion follows from Liu-Layland on the constrained-deadline subcase). Specify the alternative argument.
+
+### Verdict mapping
+
+The verdict reflects the **worse** of the two axes (because the worse one drives risk):
+
+| Result truth | Proof soundness | Verdict |
+|---|---|---|
+| `true` / `likely_true` | `sound` / `mostly_sound` | `correct` or `likely_correct` |
+| `true` / `likely_true` | `unsound_but_recoverable` | **`uncertain`** with the **proof-only** tag (see below) |
+| `true` / `likely_true` | `unsound` | `uncertain` (often the right call: claim probably stands, but the published proof needs rewriting) |
+| `uncertain` | any | `uncertain` |
+| `likely_false` / `false` | any | `likely_flawed` or `flawed` |
+
+This means `likely_flawed` and `flawed` are reserved for **result-falsity** verdicts. Proof-soundness-only issues get `uncertain` with explicit `proof_unsound` tagging in the output (see Output Format below).
+
+### Patterns specifically for "unsound proof of correct claim"
+
+These are mechanisms we have seen repeatedly:
+
+- **Invalid load-bearing step, but the result follows from a standard prior result.** The proof's central inequality is wrong, but Liu-Layland / Dertouzos / McNaughton / Chetto already establishes the claim on this paper's task model. Tag: `claim_holds_via_prior_work`.
+- **Two errors that cancel.** A sign error in step 5 is undone by a sign error in step 8. The chain is unsound but the final inequality is correct. Tag: `cancelling_errors`.
+- **Sketchy generalization, correct on the specific case.** The proof sketches an argument that doesn't generalize to all parameters, but the *theorem's quantifiers* restrict to the case where the argument does work. Tag: `over-general_argument_correct_on_restricted_quantifier`.
+- **Wrong intermediate claim, but the right conclusion.** A set-inclusion claim `A ⊆ B` is provably false, but the proof's actual use of the claim is `f(A) ≤ f(B)` for monotone `f`, which holds for a different reason. Tag: `false_intermediate_unused_in_substance`.
+- **Right algorithmic intuition, wrong formal proof.** Common in systems / algorithm papers: the algorithm works, the high-level intuition is correct, but the formal correctness argument has a hole. Tag: `algorithm_correct_proof_does_not_establish`.
+
+When you identify one of these patterns, do **not** flag the result as `likely_flawed`. The verdict should be `uncertain` with `proof_unsound_but_recoverable` in the soundness axis, and the `Recommended next step` should suggest *rewriting the proof* rather than constructing a counterexample. A counterexample search will fail; the author needs proof revision, not result retraction.
+
+### Why this distinction matters for downstream stages
+
+- **`find-counterexample`** should not be dispatched for `unsound + true` results — CX search will return `no_counterexample` and waste effort. The audit's `Counterexample-falsifiable?` flag should reflect this: if your audit concluded "proof is unsound but the result still holds via Liu-Layland", then no counterexample is forthcoming, mark every issue `Counterexample-falsifiable? no`.
+- **`writeup-finding`** for proof-only flaws should emphasize *what to fix in the proof* and reference the alternative argument that does establish the result. Safety-impact field becomes `no_safety_impact` (or `proof_only`); severity becomes `moderate` (still publishable as a correction, but not an erratum).
+- **`stress-test-defense`** for proof-only flaws should pressure-test whether the alternative argument actually works under the paper's exact preconditions, not whether the result holds.
+
 ## Output Format
 
 Produce a Markdown report:
@@ -161,9 +216,14 @@ Produce a Markdown report:
 **Verdict**: correct | likely_correct | uncertain | likely_flawed | flawed
 **Confidence**: high | medium | low
 
+**Result truth**: true | likely_true | uncertain | likely_false | false
+**Proof soundness**: sound | mostly_sound | unsound | unsound_but_recoverable
+**Soundness-pattern tag (if applicable)**: claim_holds_via_prior_work | cancelling_errors | over-general_argument_correct_on_restricted_quantifier | false_intermediate_unused_in_substance | algorithm_correct_proof_does_not_establish | none
+**Alternative argument (if soundness is `unsound_but_recoverable`)**: brief description of the alternative argument that establishes the result.
+
 ## Summary
 
-1–3 sentence overall assessment. State the bottom line: is the proof sound, and if not, what's the most serious issue?
+1–3 sentence overall assessment. State the bottom line in two parts: (a) is the result likely true? (b) does the proof actually establish it? If these answers diverge (true result, unsound proof), call that out explicitly — it changes the recommended fix from "retract the result" to "rewrite the proof".
 
 ## Issues
 
@@ -187,9 +247,12 @@ Bulleted list of the proof steps you *did* verify, so the author knows what you 
 
 ## Recommended next step
 
-- If any issue has `Counterexample-falsifiable? yes` and `Severity ≥ moderate`: recommend running `find-counterexample` on this result.
-- If the issues are expository (proof gaps, missing intermediate steps that don't affect correctness): recommend rewriting the proof, not constructing a counterexample.
-- If verdict is `likely_correct` or `correct`: no further action needed.
+Decide from the two-axis decomposition:
+
+- **Proof soundness `unsound_but_recoverable` (result likely true, proof broken)**: recommend **rewriting the proof** along the lines of the alternative argument. Do NOT run `find-counterexample` — it will find nothing because the result is true. Run `stress-test-defense` to pressure-test whether the alternative argument actually closes the gap under the paper's exact preconditions.
+- **Result `likely_false` / `false`** with `Counterexample-falsifiable? yes` at moderate severity or worse: recommend running `find-counterexample`.
+- **Proof gaps that are purely expository** (presentation, deferred to external source, standard result invoked): recommend tightening the proof's exposition; no further audit action.
+- **Verdict `likely_correct` or `correct`**: no further action.
 ```
 
 ### Verdict discipline
