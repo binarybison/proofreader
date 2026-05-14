@@ -159,4 +159,11 @@ Section 4 is the action list the author should follow up on. Keep it short — o
 
 ## Inputs
 
-The user will provide a paper (as a path to a PDF, as extracted text, or as pasted excerpts). If the input is a PDF, use the appropriate tool to extract text first.
+The user will provide a paper. Accepted forms (in order of preference):
+
+1. **A LaTeX source** (`.tex` single file or main file of a multi-file project). Strongly preferred for author-facing review: theorem environments, labels, refs, and math symbols are preserved with full fidelity. Use [`prepare-paper-context`](../prepare-paper-context/SKILL.md) to normalize.
+2. **A pre-extracted paper-context document** (output of `prepare-paper-context`). Skips re-extraction; saves time on subsequent calls.
+3. **A PDF**. Use `pymupdf4llm` (or `pymupdf`) to extract text. PDF extraction is lossy for math notation; flag any obviously-mangled equations in the report.
+4. **Pasted text / excerpts** when the user is reviewing a specific part of the paper.
+
+When the input is LaTeX source and `prepare-paper-context` has not been run yet, invoke it first so the formal-result inventory uses theorem-environment boundaries (vastly more accurate than PDF heuristic detection).
