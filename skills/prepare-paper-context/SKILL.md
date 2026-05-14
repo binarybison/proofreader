@@ -47,7 +47,7 @@ Inspect the supplied path:
 
 **For LaTeX**:
 - Resolve `\input{}`, `\include{}`, and `\subfile{}` directives recursively. Concatenate into one logical document, preserving file boundaries for error reporting.
-- Strip LaTeX comments (`%` to end of line) unless they're in verbatim environments.
+- Strip LaTeX comments (`%` to end of line) unless they're in verbatim environments. Preserve any `% PROOFREADER` comments from previous `annotate-latex` runs separately for the user to re-review.
 - Resolve `\newcommand` / `\def` macros that the document defines (best-effort; if a macro is complex, leave the call site intact and note this).
 - Keep theorem-like environments verbatim, with their labels.
 
@@ -55,6 +55,30 @@ Inspect the supplied path:
 - Extract text. Note: math notation will be approximate. Flag any obviously-mangled equations.
 - Heuristically section-detect (most papers have numbered sections; treat all-caps or bold lines as candidate section headers).
 - Identify theorem-like blocks by formatting cues ("Theorem 3.", "Lemma 2.1", italic statement followed by "Proof.").
+
+### Step 2a (LaTeX only): consume `.aux` if present
+
+If the paper has been compiled recently and a sibling `.aux` file exists (e.g., `paper.tex` next to `paper.aux`), parse it to enrich the label topology with rendered-page numbers:
+
+- `\newlabel{thm:foo}{{3}{5}{...}}` → label `thm:foo` is Theorem 3 on rendered page 5. Surface this in the label/ref topology table.
+- `\bibcite{baruah2020}{2}` → citation key `baruah2020` is `[2]` in the rendered bibliography. Useful for matching citations in the prose ("see [2]") back to bibliography entries.
+
+If no `.aux` exists, omit the rendered-page column from the topology and note this in extraction warnings. Do **not** invoke `pdflatex` to generate one — that introduces a build dependency outside this skill's scope.
+
+### Step 2b (LaTeX only): parse bibliography
+
+Locate the paper's bibliography:
+
+- Inline `\begin{thebibliography}...\end{thebibliography}` block: parse `\bibitem[<label>]{<key>}` entries; for each, extract author, title, venue, year, URL, DOI from the free-text content (heuristic but workable).
+- External `.bib` file referenced by `\bibliography{file}` or `\addbibresource{file.bib}`: parse the `.bib` directly using standard BibTeX entry syntax.
+- For papers cited via `\cite{key}`, `\citet{key}`, `\citep{key}`: associate the in-text citation with the bibliography entry.
+
+For each cited entry, record whether the paper is *invoked* (cited but the result is used without restatement: *"by Liu-Layland's theorem"*) or *restated* (the result is reproduced verbatim or paraphrased in the paper's own theorem environment). Restatements are flagged for the [`verify-restatement`](../../agents/verify-restatement.md) agent to consider for cross-paper verification.
+
+Detect restatements by these signals:
+- `\begin{theorem}[<Citation>]` or `\begin{lemma}[<Citation>]` — the optional argument names a prior source.
+- Italic "Theorem N (Author Year)." or "Lemma N ([Smith 2003])." pattern in the prose immediately before the theorem block.
+- Explicit phrasing like "We restate the following result from \cite{key}".
 
 ### Step 3: Build the structured representation
 
@@ -89,18 +113,37 @@ For each theorem-like environment:
 
 | Label | Defined at | Referenced at |
 |---|---|---|
-| thm:foo | line 142 | lines 89, 203, 305 |
-| eq:bound | line 167 | lines 168, 210 |
+| thm:foo | paper.tex:142 (rendered page 5) | paper.tex:89, 203, 305 |
+| eq:bound | paper.tex:167 (rendered page 6) | paper.tex:168, 210 |
 
-**Dangling references** (referenced but not defined):
-- `lem:gap` referenced at line 204, no matching \label. *(LaTeX source only — this is a likely-true-positive flaw signal.)*
+**Unresolved references** (referenced but not yet defined):
+- `lem:gap` referenced at paper.tex:204, no matching `\label` in the current source.
 
-**Unused labels** (defined but never referenced): just informational; not a flaw.
+*Note: unresolved references are recorded here for the author's awareness but are NOT treated as flaws by Proofreader. In active drafting, unresolved refs are routine (a forward reference to a not-yet-written lemma, a holdover from a previous revision, a placeholder). The audit skills will not surface these as findings.*
+
+**Unused labels** (defined but never referenced): informational only.
 
 ## Bibliography
 
 For each `\bibitem` / `.bib` entry that is `\cite`-d in the body:
-- Key, title, venue/year, URL or DOI if present.
+
+| Citation key | Title | Authors | Venue / year | URL or DOI |
+|---|---|---|---|---|
+| baruahFL2020 | Schedulability analysis using ILP | Baruah | RTNS 2020 | https://doi.org/... |
+| liuLayland1973 | Scheduling algorithms for multiprogramming in a hard-real-time environment | Liu, Layland | JACM 1973 | https://doi.org/... |
+
+If the paper restates a theorem from a cited source (`Theorem 1 (Liu-Layland)`), record the restatement → citation pairing here. The [`verify-restatement`](../../agents/verify-restatement.md) agent uses this list to fetch cited sources and double-check the restatement matches the original.
+
+## Restatements
+
+When the paper restates a theorem/lemma from prior work (typically signaled by `\begin{theorem}[<Citation>]` or by an in-text *"Theorem (Liu-Layland)"*):
+
+| Restated label | Cited as | Citation key | Citation type | Worth verifying? |
+|---|---|---|---|---|
+| thm:liu-layland-utility-bound | Liu-Layland 1973 | liuLayland1973 | restatement (verbatim or paraphrase of original) | yes if a fetchable source exists |
+| thm:dbf-bound | Baruah 2003 | baruah2003 | invocation (used but not restated) | no — invocation only |
+
+Restatements are the high-leverage targets for cross-paper verification: a paper that subtly changes a precondition while restating a known result can propagate the change as if it were the original.
 
 ## Notation table
 
@@ -112,6 +155,7 @@ Issues encountered during parsing — useful for the user to know which fidelity
 - "Multi-file project: 3 files resolved, 1 file (`extras.tex`) not found"
 - "Equation 5 contains a complex macro `\sched` that could not be expanded automatically"
 - "PDF extraction: theorem block at page 7 has unusual formatting; manually verify"
+- "No `.aux` file found at `paper.aux`; rendered page numbers omitted from label topology"
 ```
 
 ### Step 4: Persist (optional)
