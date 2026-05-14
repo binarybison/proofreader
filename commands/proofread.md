@@ -62,6 +62,17 @@ Each subagent returns a Markdown counterexample report. Save it in the conversat
 
 Announce: *"Stage 3: dispatched N counterexample subagents…"* and report each result as it returns.
 
+#### CX failure → tighter audit re-pass
+
+If a `find-counterexample` subagent returns `outcome: no_counterexample` for an audit that was `likely_flawed`, this is a strong signal that the audit was wrong about result-falsity but may still be right about proof-unsoundness. **Do not silently move on.** Specifically:
+
+1. Re-classify the audit's two-axis verdict to **`result_truth: likely_true`** and **`proof_soundness: unsound` or `unsound_but_recoverable`** (whichever fits the audit's evidence).
+2. Re-invoke `audit-proof` inline on the same result with a tighter brief: "The counterexample search failed — the result is probably true. Focus your re-audit on *proof soundness*: which specific step is invalid, and what alternative argument (standard prior result, restricted-quantifier substitution, etc.) would establish the claim?" This second pass produces a sharper diagnosis of the proof-only flaw.
+3. Mark the result for Stage 4 stress-test with the new framing — the defender should focus on whether the alternative argument actually closes the gap, not on whether the original proof was sound.
+4. Do **not** dispatch another `find-counterexample` on this result. The CX hunt has already failed; the issue is provably not about result-falsity.
+
+This feedback loop targets one of the largest false-positive sources in the original pipeline: audits that flag `likely_flawed` based on perceived proof gaps, then surface a confused arbiter verdict when CX hunt fails. The tightened second pass converts that into a clean "result holds, proof needs rewriting" finding.
+
 ### Stage 4: stress-test-defense (defender + arbiter subagents)
 
 For each result with either a constructed counterexample or a `likely_flawed` audit:

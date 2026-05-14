@@ -59,6 +59,26 @@ Work through these systematically. For each item, either record an issue or note
 - Do cited lemmas actually support the claims made? Re-read each cited lemma's preconditions and verify they hold here.
 - For results invoked from prior work, do the preconditions hold under *this* paper's model?
 
+### Cross-reference verification (do this systematically)
+
+For every `by Lemma N`, `by Theorem M`, `applying Eq. K`, or similar invocation in the proof:
+
+1. **Existence** — confirm the referenced object actually exists in the paper. Dangling references (e.g., "by Lemma 4" when no Lemma 4 is stated) are a documented true-positive pattern and are mechanical to catch. Build a small mental index of all labeled objects in the paper before starting; flag any reference that resolves to nothing.
+
+2. **Statement check** — read the referenced object's actual statement, not your memory of similar results. The same author may have a "Lemma 3" in this paper that is a different proposition than their "Lemma 3" in an earlier paper.
+
+3. **Precondition check** — does the invocation respect *every* precondition of the referenced object? Common failure modes:
+   - The referenced lemma was proved for implicit-deadline tasks; the current proof applies it to a constrained-deadline task set.
+   - The lemma was proved for a single processor; the current proof applies it inside a multiprocessor argument.
+   - The lemma's quantifier is "for every job released after time t"; the proof uses it on a job released *at* time t.
+   - The lemma assumes work-conserving scheduling; the current paper's algorithm is non-work-conserving.
+
+4. **Direction-of-use check** — is the referenced result being used in the right direction? A lemma stating `A ≤ B` cannot be invoked to conclude `A ≥ B` or to conclude anything about `A − B`. A lemma stating "if X then Y" cannot be invoked contrapositively without checking that "not Y" implies "not X" was *proved*, not just asserted.
+
+5. **Conclusion-form check** — is the conclusion being used in the form it was proved? If Lemma N proved `R_i ≤ f(C, T)` and the proof uses it as `R_i = f(C, T)` (i.e., as an equality), flag that — the bound is being used more strongly than it was established.
+
+When any of (1)–(5) fails, the issue is `dependency_error` with severity at least `moderate`. Tag it `Counterexample-falsifiable? yes` if a concrete task set could exhibit the precondition violation; `no` if the misuse is structural.
+
 ### Quantifier and scope issues
 - ∀ vs ∃ used correctly?
 - Order of quantifiers correct? (Common bug: `∀ε ∃N` vs `∃N ∀ε`.)
