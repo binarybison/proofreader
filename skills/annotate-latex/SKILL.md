@@ -1,6 +1,6 @@
 ---
 name: annotate-latex
-description: Inject Proofreader audit findings as in-place annotations into the paper's LaTeX source, so the author can review and address them inside their normal editor workflow. Produces a unified diff (or applies the edits directly with permission), using \todo{} for visible margin notes if the paper supports them, falling back to PROOFREADER comments otherwise. Triggers on "annotate my LaTeX with the findings", "add todo comments for these audits", "patch my .tex with the audit results".
+description: Inject Proofreader audit findings as comment-only annotations into the paper's LaTeX source so the author can review them in their editor next to the actual proof text. Output is plain `%` comments that do NOT affect the rendered PDF and do NOT require any new packages. Produces a unified diff for review before applying. Triggers on "annotate my LaTeX with the findings", "add audit comments to my .tex", "patch my source with the audit results".
 version: 0.1.0
 ---
 
@@ -8,13 +8,23 @@ version: 0.1.0
 
 ## Role
 
-You take Proofreader audit findings (and optionally counterexample / stress-test / writeup outputs) and inject them into the paper's `.tex` source as in-place annotations. The author then sees the findings in their editor next to the actual proof text, can address them in a normal revision pass, and can `git diff` to track what changed.
+You take Proofreader audit findings (and optionally counterexample / stress-test / writeup outputs) and inject them into the paper's `.tex` source as **comment-only** annotations. The author sees the findings in their editor next to the affected proof text, can address them in a normal revision pass, and can `git diff` to track what changed.
 
 This is the *opposite* end of [`prepare-paper-context`](../prepare-paper-context/SKILL.md): that one reads source in, this one writes annotations back out.
 
+## Inviolable rules
+
+1. **Comments only.** Every annotation begins with `%` and is a single line. No `\todo{}`, no `\marginpar`, no custom macros, no `\textcolor`, no anything that would render in the compiled PDF.
+2. **No package additions.** Never insert `\usepackage{...}` lines. Never modify the preamble.
+3. **No content edits.** Never rewrite proof text, theorem statements, or any non-comment lines. The author writes the paper; this skill annotates it.
+4. **Diff first, apply on consent.** Always present a unified diff and ask the user before writing the file.
+5. **Compile-safe.** A LaTeX file that compiled before this skill ran will compile identically after — the rendered PDF is byte-identical except for the missing annotations.
+
+These rules are not preferences; they are hard constraints. The author may be using this skill mid-draft and any unintended LaTeX-level change risks polluting their build artifacts.
+
 ## Why this exists
 
-Markdown audit reports are great for one-shot review but poor for revision. When the author opens their `.tex` source in their editor, they want to see *"this proof has a problem"* next to the proof, not in a separate document. Author-mode tools like `\todo{}` from `todonotes` are designed for exactly this.
+Markdown audit reports are good for one-shot review but poor for revision. When the author opens their `.tex` source in their editor, they want to see *"this proof has a problem"* near the proof itself, not in a separate document. LaTeX comments are the cleanest way to achieve that without changing what the compiler sees.
 
 ## Inputs
 
@@ -25,126 +35,120 @@ Required:
 Optional:
 3. **Counterexample report** — to annotate the proof with the counterexample summary.
 4. **Stress-test verdict** — to suppress annotations for `false_positive` findings (the user has decided these aren't real).
-5. **Writeup briefs** — to attach to each annotation a `\todo{...}` pointing at the corresponding writeup file.
+5. **Writeup briefs** — so each annotation can reference the corresponding writeup filename.
 
-## Annotation styles
+## Annotation format
 
-Detect what the paper already uses and adapt. In priority order:
-
-### Style 1: `\todo{}` from `todonotes` (preferred)
-
-If the paper's preamble has `\usepackage{todonotes}` or `\usepackage[options]{todonotes}`, use:
+Every annotation line begins with `% PROOFREADER` so the entire set can be removed mechanically with a single `sed` invocation.
 
 ```latex
-\todo[color=red!30]{\textbf{Proofreader audit}: <one-line summary>. \textit{See} \texttt{finding-thm-3.md}.}
+% PROOFREADER [<severity>] [<type>]: <one-line summary>
+% PROOFREADER:   <continuation, indented two spaces>
+% PROOFREADER:   See <finding-brief-filename> for the full audit.
 ```
 
-These render as visible margin notes when the paper is built.
+Severities: `minor` / `moderate` / `serious` / `critical`.
+Types: the issue's `type` field from the audit (`incorrect_formula`, `missing_precondition`, `dependency_error`, etc.).
 
-### Style 2: Manual `\todo` macro
+A typical annotation block is 2–4 lines. Keep them tight — verbose annotations clutter the source and make `git diff` noisy.
 
-If the paper defines its own `\todo` or `\note` macro (look for `\newcommand{\todo}`), use that macro instead. Don't introduce a package the author hasn't opted into.
-
-### Style 3: PROOFREADER comments (fallback)
-
-If neither `todonotes` nor a custom todo macro is present, use plain LaTeX comments:
-
-```latex
-% PROOFREADER [moderate]: <one-line summary>
-% PROOFREADER:   Issue type: dependency_error
-% PROOFREADER:   See finding-thm-3.md for the full audit.
-```
-
-These are invisible in the rendered PDF but visible in the editor and in `git diff`.
-
-Never insert anything that would change the rendered output without the user's explicit consent. The `\todo{}` margin notes are an exception only when `todonotes` is already in the preamble (the author opted in).
-
-## Placement rules
-
-Place each annotation immediately **after** the `\begin{...}` line of the environment it applies to, or immediately after the labeled equation. This keeps `git diff` minimal — the annotation lands at a line near the proof, not scattered through it.
-
-For a theorem with an audit finding:
+### Example
 
 ```latex
 \begin{theorem}\label{thm:foo}
-\todo{\textbf{Proofreader}: incorrect-formula issue at step 3. See finding-thm-3.md.}
-<theorem statement>
+% PROOFREADER [moderate] [missing_precondition]: theorem statement is missing the "continuously backlogged" precondition.
+% PROOFREADER:   Proof of Lemma 6 requires continuous backlog; current statement only requires backlog.
+% PROOFREADER:   See finding-thm-foo.md.
+For any task set $\tau$ satisfying ...
 \end{theorem}
 \begin{proof}
-\todo{\textbf{Proofreader}: load-bearing step on line 4 substitutes R^- where R^+ is required.}
-<proof body>
+% PROOFREADER [serious] [incorrect_formula]: load-bearing step on line 4 substitutes R^- where R^+ is required.
+% PROOFREADER:   Inductive chain uses lower bound where upper bound was established. See finding-thm-foo.md.
+... proof body ...
 \end{proof}
 ```
 
-For an equation with a finding:
+For a labeled equation:
 
 ```latex
 \begin{equation}\label{eq:bound}
-% PROOFREADER [moderate]: constant gamma assumed = 1; Table 2 shows gamma up to 1.095.
+% PROOFREADER [moderate] [incorrect_formula]: constant gamma assumed = 1; Table 2 shows gamma reaches 1.095.
 R_i \leq C_i + \sum_j B_j
 \end{equation}
 ```
+
+## Placement rules
+
+Place each annotation immediately **after** the `\begin{...}` line of the environment it applies to, or immediately after the labeled equation's `\begin{equation}` / `\begin{align}` line. This keeps `git diff` minimal — annotation lands one line above the affected content.
+
+For findings that target the whole environment (e.g., a theorem with multiple issues), group all related annotations into one block immediately after `\begin{theorem}`. Do not interleave annotations with the theorem statement.
+
+For findings that target a specific equation within a proof, place the annotation immediately above the equation. If the equation is inline (no `\begin{equation}`), place the annotation on the line before the surrounding paragraph and reference the inline location verbally in the annotation text.
 
 ## Process
 
 ### Step 1: Match findings to source locations
 
-For each audit finding, look up the targeted result's label and find the corresponding `\label{}` in the `.tex` source. If the audit was done on a PDF, you'll have a result number ("Theorem 3") but no label — search for `\begin{theorem}` blocks and match by number (count occurrences) or by statement-text similarity.
+For each audit finding, look up the targeted result's label and find the corresponding `\label{}` in the `.tex` source.
 
-### Step 2: Determine annotation style
+If the audit was done on a PDF (no LaTeX label available), you'll have a result number ("Theorem 3") and a verbatim statement. Search for `\begin{theorem}` blocks; match by:
+- Statement-text similarity (preferred — exact phrase matches).
+- Ordinal count (the third `\begin{theorem}` in document order if numbering is plain).
 
-Inspect the preamble for `\usepackage{todonotes}` or `\newcommand{\todo}`. If neither is present, use Style 3 (PROOFREADER comments).
+If matching is ambiguous, list the candidates and ask the user once.
 
-If `todonotes` is missing but the user explicitly requests `\todo{}` annotations, ask for permission to add `\usepackage{todonotes}` to the preamble. Do NOT add it without permission.
+### Step 2: Compose annotations
 
-### Step 3: Compose the annotations
+For each finding:
+- One header line: `% PROOFREADER [<severity>] [<type>]: <one-line summary>`. ≤ 100 characters total. State the *what*, not the why.
+- 1–3 continuation lines: `% PROOFREADER:   <detail>` for the why and any quantitative detail.
+- One trailing reference line if a finding brief exists: `% PROOFREADER:   See <brief-filename>.`
 
-For each finding, compose a one-line summary plus a pointer to the full writeup (if one exists). Include severity, issue type, and (if a counterexample exists) the discrepancy magnitude.
+### Step 3: Produce a unified diff
 
-### Step 4: Output as a unified diff
-
-Produce a unified diff against the original source:
+Present the diff. Do not apply yet.
 
 ```diff
 --- a/paper.tex
 +++ b/paper.tex
-@@ -141,6 +141,7 @@
+@@ -141,6 +141,8 @@
  \begin{theorem}\label{thm:foo}
-+\todo[color=red!30]{\textbf{Proofreader}: incorrect-formula on step 3. See finding-thm-3.md.}
++% PROOFREADER [moderate] [missing_precondition]: theorem statement omits "continuously backlogged".
++% PROOFREADER:   See finding-thm-foo.md.
  For any task set $\tau$ satisfying ...
 ```
 
-Present the diff to the user, then ask whether to apply it (`yes` / `no` / `show full diff`). On `yes`, apply with `Edit` (or write the patched file alongside the original as `paper.annotated.tex`).
+Ask: *"Apply this diff to paper.tex? (yes / no / show full diff)"*. On `yes`, apply with `Edit`. On `no`, do nothing; the diff itself is the deliverable.
 
-### Step 5: Index file
+### Step 4: Index file
 
-After applying annotations, write an `annotations-index.md` next to the paper:
+After applying, write `annotations-index.md` next to the paper:
 
 ```markdown
 # Proofreader annotations on <paper>
 
-Annotations applied on <ISO date>:
+Applied <ISO date>. All annotations are LaTeX comments (`% PROOFREADER ...`)
+and do not affect the rendered PDF.
 
 | Location | Severity | Type | Finding brief |
 |---|---|---|---|
-| `\label{thm:foo}` (line 141) | moderate | incorrect_formula | finding-thm-3.md |
-| `\label{eq:bound}` (line 167) | minor  | notation_ambiguity | finding-eq-bound.md |
+| `\label{thm:foo}` (paper.tex:141) | moderate | missing_precondition | finding-thm-foo.md |
+| `\label{eq:bound}` (paper.tex:167) | moderate | incorrect_formula | finding-eq-bound.md |
 
-To remove all Proofreader annotations: `sed -i '/PROOFREADER/d' paper.tex` (for Style 3), or remove the `\todo{}` lines via a `git diff` review.
+To remove ALL Proofreader annotations from this file:
+    sed -i '/^% PROOFREADER/d' paper.tex
 ```
+
+The `sed` removal pattern is anchored to the start of the line (`^%`) to avoid touching any `% PROOFREADER` substring that happens to appear inside a verbatim environment or string literal.
 
 ## What this skill does *not* do
 
-- **Compile the paper.** That's the author's job. If they want to verify a proposed annotation doesn't break compilation, they `pdflatex` it themselves.
-- **Rewrite proofs.** Annotations point at issues; the author rewrites. (A future `propose-proof-patch` skill could do this; not yet built.)
-- **Modify the rendered PDF.** Annotations that affect rendered output (`\todo{}` margins) are only added when the paper already opts into them.
-- **Touch files the user didn't authorize.** Annotation always goes through a diff review unless the user explicitly opts into auto-apply.
+- **Compile the paper.** No `pdflatex` invocations.
+- **Rewrite proofs.** Annotations point at issues; the author rewrites.
+- **Modify the rendered PDF.** All annotations are LaTeX comments.
+- **Add packages.** No `\usepackage` insertions, ever.
+- **Touch files the user didn't authorize.** Always diff-first.
 
 ## Removing annotations
 
-Document how the user undoes annotations:
-
-- **Style 1 / 2 (\todo)**: `git diff` and revert; or `sed -i '/\\\\todo\\[color=red.30\\]{\\\\textbf{Proofreader/d' paper.tex` for the specific style.
-- **Style 3 (PROOFREADER comments)**: `sed -i '/% PROOFREADER/d' paper.tex` removes all of them.
-
-After a successful revision pass, the author should remove annotations they've addressed; the index file is the canonical list.
+After a successful revision pass, the author should remove annotations they've addressed. The single sed line in the index file removes all annotations at once. For selective removal, `git diff` shows every annotation that was added; the author can revert individual hunks.
