@@ -270,6 +270,23 @@ Proofreader is intentionally narrow. It does not comment on prose clarity, abstr
 
 If you want general writing review, run a separate tool. If you want proof scrutiny, run Proofreader.
 
+## Examples gallery
+
+The [`examples/`](examples/) directory has worked case studies showing what Proofreader catches on papers with known correctness issues. Each case is a 10-minute end-to-end read with the actual audit excerpt, the counterexample, the verification script, and the arbiter's verdict — useful both for new users deciding whether the tool is worth running and for contributors learning what a good case writeup looks like.
+
+Current contents:
+- [`baruah-rtns-2020-ilp`](examples/baruah-rtns-2020-ilp/) — an ILP schedulability encoding with a missing totality constraint on ordering variables. Pattern caught: missing precondition (Pattern family 3 in [`scheduling-theory`](domain-packs/scheduling-theory.md)). Includes a runnable [verification-script.py](examples/baruah-rtns-2020-ilp/verification-script.py).
+
+Contributions welcome — see [examples/README.md](examples/README.md) for the discretion note and contribution model.
+
+## Domain packs
+
+Proofreader's flaw-pattern coverage is extensible via [`domain-packs/`](domain-packs/). The baseline `scheduling-theory` pack covers classical RT scheduling; `network-calculus` is a starter pack; packs for control-theoretic bounds, probabilistic real-time, distributed RT, DAG-parallel, and shared-resource analysis are planned. Contribute a pack hand-written or generated mechanically from a subfield-specific flaw corpus — see [domain-packs/README.md](domain-packs/README.md).
+
+## LaTeX support
+
+Proofreader accepts `.tex` source as a first-class input format, alongside PDF. The `prepare-paper-context` skill normalizes either form into a clean representation; `annotate-latex` injects audit findings as in-place `\todo{}` or `% PROOFREADER` comments in your source so you can address them in your normal editor workflow. See those skills' SKILL.md files for details.
+
 ## Provenance
 
 These skills were distilled from a research pipeline ([Ward, 2026, in preparation](https://github.com/bcward/paper-evaluation)) that uses LLMs as first-pass peer reviewers across published RT systems papers. The author-facing variants in this plugin emit human-readable Markdown instead of pipeline-bound JSON, and the formal-result inventory and per-result audit are split into separate skills, while the adversarial author-defense and arbiter stages are run as fresh-context subagents — the same structural independence the original pipeline gets from making each role a separate API call.
