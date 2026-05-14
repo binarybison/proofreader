@@ -65,6 +65,14 @@ Work through these systematically. For each item, either record an issue or note
 - Do cited lemmas actually support the claims made? Re-read each cited lemma's preconditions and verify they hold here.
 - For results invoked from prior work, do the preconditions hold under *this* paper's model?
 
+### Restatement verification (cross-paper)
+
+If the result under audit is a *restatement* of a theorem or lemma from cited prior work (signaled by `\begin{theorem}[<Citation>]`, *"Theorem N (Author Year)."*, or *"We restate the following result from [N]"*), do not just compare against your memory of the cited source — that is a recipe for false confidence.
+
+Dispatch the [`verify-restatement`](../../agents/verify-restatement.md) agent. It will (with the user's explicit permission) fetch the cited source and compare the restatement against the original, looking for precondition drift, conclusion strengthening, quantifier-scope changes, and citation-as-shorthand. If the agent returns `differs`, treat the discrepancy as a real concern in this audit; if `not_verifiable`, note that human review is needed.
+
+The `Restatements` table in the prepared paper context (from [`prepare-paper-context`](../prepare-paper-context/SKILL.md)) gives you the citation key and verbatim restatement to pass to the agent.
+
 ### Cross-reference verification (do this systematically)
 
 For every `by Lemma N`, `by Theorem M`, `applying Eq. K`, or similar invocation in the proof:

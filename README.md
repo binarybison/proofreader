@@ -25,8 +25,9 @@ These run in fresh, isolated contexts. The main conversation dispatches them and
 | Agent | What it does |
 |---|---|
 | `find-counterexample` | Adversarial CX hunt for a flagged result. Writes and runs Python to verify. Isolated context keeps the noisy iteration out of the main conversation. |
-| `defend-finding` | Mounts the strongest legitimate defense of the paper against an audit finding. Fresh context means the defender has no idea about the eventual arbiter — and no incentive to soften its case in anticipation. |
+| `defend-finding` | Mounts the strongest legitimate defense of the paper against an audit finding. Fresh context means the defender has no idea about the eventual arbiter — and no incentive to soften its case in anticipation. May fetch cited references with explicit user permission. |
 | `arbitrate-finding` | Impartial adjudicator. Reads paper + audit + defense (+ optional counterexample) with **fresh eyes** and renders a true/false-positive verdict with a flaw taxonomy. |
+| `verify-restatement` | When the paper restates a theorem from a cited source (`Theorem 1 (Liu-Layland)`), fetches the original (with permission) and compares — detects precondition drift, conclusion strengthening, quantifier-scope changes that propagate through the paper's downstream proofs. |
 
 ### Slash commands
 
