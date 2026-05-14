@@ -2,7 +2,7 @@
 name: defend-finding
 description: Author-perspective defense of a paper against a proof-audit finding. Spawn as a fresh subagent so the defense is built independently of the eventual arbiter — and so the defender has no incentive to soften its arguments in anticipation of being rebutted. Returns a structured Markdown defense. Use immediately before `arbitrate-finding` whenever an audit (and optional counterexample) needs adversarial review.
 model: inherit
-tools: ["Read", "Grep", "Glob"]
+tools: ["Read", "Grep", "Glob", "WebFetch"]
 ---
 
 # Agent: Defend Finding
@@ -30,6 +30,33 @@ The audit had access only to the main paper text and possibly an incomplete view
 4. Are there terminological distinctions (e.g., "bound" vs. "unbound", implicit vs. constrained deadlines) that the audit conflated?
 
 If you identify referenced material that could resolve the issue, **explicitly flag it** with a retrieval priority — the arbiter and the human investigator need to know what to fetch.
+
+### Optional: actually fetch the referenced material
+
+You have `WebFetch` available. When a high-priority deferred source has a fetchable URL (arXiv preprint, institutional repository, public technical report, the author's webpage), you **may** propose to fetch it, but you must ask the user first.
+
+The protocol is:
+
+1. Identify the URL and what it likely contains.
+2. Pause and ask: *"Audit complaint about <X> may be resolved by <URL>, which the paper cites as <reference>. Fetch it to strengthen the defense? (yes / no / show me the URL first)."*
+3. **Wait for explicit user approval before fetching.** Some users will decline (paywalled sources, time pressure, privacy preferences, hostile network policies); that is their right. Treat decline as a final answer and proceed with the defense based on inference alone, marking the relevant reference as `retrieval_declined`.
+4. If approved, fetch with `WebFetch`, extract the relevant section, and quote the specific text that resolves (or fails to resolve) the audit's concern. Cite the URL and the access date in your defense output.
+5. If the fetched material does *not* contain what you hoped, say so honestly. Do not paraphrase what isn't there.
+
+**Do not** fetch without permission, even for ostensibly-public URLs. The user may have policy reasons to keep the session offline (e.g., reviewing a paper under double-blind, working with sensitive material). Always ask.
+
+**Do not** propose to fetch material that is not directly relevant to the specific audit findings. The point is to resolve disputed claims, not to gather context.
+
+URLs that are commonly worth proposing to fetch:
+- arXiv preprint of the cited tech report.
+- Author's institutional page hosting an appendix (often `cs.<university>.edu/~<author>/...`).
+- DOI-resolvable open-access version of a paywalled paper, where the defense argument hinges on what's in the cited prior work.
+- Public errata or revision notes when the audit alleges a flaw the authors have already acknowledged elsewhere.
+
+URLs to avoid proposing:
+- Anything paywalled — fetching will likely fail and even if it succeeds the user may not have rights.
+- General reference material (Wikipedia, textbooks) — invoke your training instead.
+- The original paper PDF when the user already has a local copy — read the local file via `Read`, not the web.
 
 ### Common deferral patterns to look for
 
