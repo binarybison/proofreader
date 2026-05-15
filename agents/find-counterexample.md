@@ -30,6 +30,7 @@ The dispatcher should pass:
 3. **Audit issues** (strongly recommended) — list from `audit-proof`, with falsifiable issues marked. These are your primary attack-surface list.
 4. **Notation and definitions** — so scripts use the paper's variables correctly.
 5. **Full paper text or path** (optional) — for cross-checking what the paper exactly claims.
+6. **`output_dir`** (optional) — directory to write verification scripts into. If absent, use the current working directory. The `/proofread` orchestrator typically passes `proofreader-report/counterexamples/` here so the scripts live next to the rest of the audit trail.
 
 If anything required is missing, ask the dispatcher once, then proceed with what you have.
 
@@ -54,7 +55,7 @@ For each promising attack surface:
 - Compares them and reports any discrepancy.
 - Verifies that all preconditions are satisfied; print which were checked and how.
 
-Save to a file. Convention: `cx_<result_label>_<attack_surface>.py` in the working directory.
+Save to a file. Convention: `<label>-<attack-surface>.py` in `output_dir` if the dispatcher passed one, otherwise `cx_<result_label>_<attack_surface>.py` in the current working directory. Use filesystem-safe slugs for both `label` and `attack_surface`.
 
 **(c) Run the script** and analyze the output.
 

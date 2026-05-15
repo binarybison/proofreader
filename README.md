@@ -110,20 +110,26 @@ The intended workflow: you have a draft, you want to find the holes before a rev
 1. **Hand it the LaTeX source if you have it.** Theorem-environment boundaries, math symbols, and `\label`/`\ref` topology survive LaTeX extraction exactly; PDF extraction is heuristic and lossier. Run `prepare-paper-context` once at the start of the session so downstream skills don't re-parse.
 2. **Run the full pipeline in adversarial mode.**
    ```text
-   > /proofread papers/my-draft.tex mode=adversarial
+   > /proofread papers/my-draft.tex mode=adversarial out=proofreader-report-v1/
    ```
    The orchestrator prints a per-stage plan and waits for confirmation before launching. Expect this to take a while and use a non-trivial amount of tokens: the audit stage runs once per flagged result, the counterexample subagent iterates Python verification scripts agentically until it succeeds or exhausts its attack-surface list, and the defender / arbiter chain runs separately per finding. Variance is large — a paper with two clean theorems is much cheaper than one with eight contested ones. Watch your provider's usage dashboard if cost matters. Adversarial mode is the right setting here: you want the worst plausible reading of your own work, so you can decide what to harden *before* submission.
+
+   The output is a directory containing `report.md` (the top-level summary), per-result audits, counterexample reports and verification scripts, defender and arbiter outputs, and one finding brief per confirmed flaw. Naming the directory with a version suffix (`v1`, `v2`, …) makes step 6 below cheap.
 3. **Triage findings as they come back.** For each `true_positive` / `likely_true_positive`, decide: is the fix a tightened precondition, a proof rewrite, or a result revision? The two-axis verdict (result truth vs. proof soundness) tells you which.
 4. **Inject the findings into your source.** Run `annotate-latex` to write `% PROOFREADER` comments at the affected proof environments and labeled equations. The comments don't affect the rendered PDF, but they show up next to the proof text in your editor.
 5. **Revise in your normal editor workflow.** Address one annotation at a time; remove it (or delete it via the `sed` line in the index file) as you fix the underlying issue.
-6. **Verify the fixes took.**
+6. **Verify the fixes took.** First run `/proofread` on the revised draft into a fresh directory:
    ```text
-   > /diff-proofread papers/my-draft-v1.tex papers/my-draft-v2.tex mode=adversarial
+   > /proofread papers/my-draft.tex mode=adversarial out=proofreader-report-v2/
    ```
-   The diff report leads with regressions — these are the highest-priority signal, because they mean your fix introduced a new problem. Fixes, unfixed issues, and new findings come next.
+   Then diff the two report directories:
+   ```text
+   > /diff-proofread proofreader-report-v1/ proofreader-report-v2/
+   ```
+   `/diff-proofread` reuses per-result audits whose verbatim proof text didn't change between versions — only the touched proofs are re-audited, which keeps revision rounds cheap. The diff report leads with regressions (the highest-priority signal — your fix introduced a new problem), then fixes, unfixed issues, and new findings.
 7. **Iterate** if regressions or new findings appear; otherwise submit.
 
-A useful habit: keep the proofreader report directory (`proofreader-report-v1/`) under version control alongside the draft. The next `/diff-proofread` can reuse it cheaply and the audit history becomes a record you can hand to coauthors or future-you.
+A useful habit: keep the proofreader report directories under version control alongside the draft. The audit history becomes a record you can hand to coauthors or future-you, and `/diff-proofread` only pays the LLM cost for proofs that actually changed.
 
 ### Reviewing your past publications
 

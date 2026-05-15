@@ -22,17 +22,17 @@ Re-running `/proofread` from scratch on each revision wastes context, and worse,
 The command takes two paper paths. For each:
 - A PDF, or
 - A `.tex` file (or multi-file project root), or
-- A path to an existing Proofreader report directory (e.g., `proofreader-report-v1/`).
+- A path to an existing Proofreader report directory (with the layout `/proofread` produces: `report.md`, `evaluation.md`, `audits/<label>.md`, etc. — typically named `proofreader-report-v1/`).
 
-If a Proofreader report directory is supplied, reuse the stored audits/verdicts directly. If a paper is supplied, run `/proofread` to produce a fresh report first.
+If a Proofreader report directory is supplied, reuse the stored audits and verdicts directly. If a paper is supplied, run `/proofread` to produce a fresh report directory first.
 
 ## Steps
 
 ### 1. Establish both reports
 
-If either input is a raw paper (not a report directory), invoke `/proofread` on it to produce a report. Use the same `mode` and `domain` for both sides — otherwise the diff is comparing apples to oranges.
+If either input is a raw paper (not a report directory), invoke `/proofread` on it with `out=proofreader-report-old/` or `out=proofreader-report-new/` as appropriate. Use the same `mode` and `domain` for both sides — otherwise the diff is comparing apples to oranges.
 
-Save the two reports as `proofreader-report-{old,new}.md` plus their per-finding briefs.
+Each report directory must contain at minimum `evaluation.md` and `audits/<label>.md` per audited result; this command compares those.
 
 ### 2. Match results across versions
 
@@ -126,9 +126,16 @@ Always end with concrete actions:
 
 ## Caching and incremental computation
 
-When v1 was produced by an earlier `/proofread` run that stored audits per result, the diff can avoid re-auditing results whose proof text is unchanged (compare extracted proof text byte-for-byte; if identical, copy the v1 audit forward). This is most useful when v2 is a small revision of v1.
+The persisted layout `/proofread` produces — one Markdown file per result in `audits/<label>.md`, plus the verbatim proof text in `evaluation.md` — is exactly what enables cheap diffs. When v1 exists as a report directory:
 
-If v1's report doesn't exist (only the PDF was kept), full re-run is required. Suggest to the user that future revisions should preserve the report directory to enable cheap diffs.
+1. For each result in v2, extract its verbatim proof text from the v2 `evaluation.md`.
+2. Compare against the same result's proof text in the v1 `evaluation.md`.
+3. If byte-for-byte identical, copy `proofreader-report-v1/audits/<label>.md` forward as the v2 audit; do not re-invoke `audit-proof`.
+4. If the proof text changed, re-audit normally.
+
+This is most useful when v2 is a small revision of v1 — typical between rounds of self-review.
+
+If v1's report directory wasn't preserved (only the PDF was kept), a full re-run is required. Suggest to the user that future revisions keep the report directory under version control alongside the draft so subsequent diffs are cheap.
 
 ## Limitations
 
