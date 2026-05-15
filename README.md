@@ -152,7 +152,7 @@ The compounding value: even findings you choose not to act on tighten your intui
 You suspect one specific result. Skip everything else; just try to break it.
 
 ```text
-> Use find-counterexample on Theorem 3 of papers/baruah-sies24.pdf.
+> Use find-counterexample on Theorem 3 of papers/my-paper.pdf.
 >   Theorem 3 states: "<paste statement>"
 >   Proof: "<paste verbatim proof>"
 >   System model: implicit-deadline sporadic task set, m identical processors,
