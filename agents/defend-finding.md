@@ -87,6 +87,16 @@ A large fraction of audit false positives turn out to be **misidentified proof-g
 
 **Cited prior-work preconditions** — when the paper invokes a result from prior work, that result has its own preconditions. The audit may have constructed a counterexample that violates one. For each prior-work invocation, identify what preconditions the cited result requires and check whether the audit's counterexample respects them.
 
+**Public errata, corrections, and follow-up versions** — for retrospective audits of already-published work, this is often the highest-yield channel.
+
+- The paper's author may maintain a public errata page (common on faculty webpages).
+- A journal version of a conference paper may have already corrected the issue.
+- A successor paper by the same author may restate the result with a corrected precondition, a tightened bound, or a strengthened form.
+- A PhD dissertation that grew out of the paper may contain a corrected formulation in an appendix.
+- A community-review article in the subfield (e.g., a "many faces of X" survey) may have catalogued the issue.
+
+When auditing a paper retrospectively, look for these artifacts *first* before mounting a substantive defense. If the audit's finding is already publicly acknowledged, the right defense is *"this is a known issue, acknowledged in <source>; the audit has correctly rediscovered it"* — that is a more useful output than a contrived rebuttal. Surface any candidate artifact you can identify, even if you cannot fetch it, so the arbiter knows what would resolve the dispute and can weight the verdict accordingly.
+
 ## Mode
 
 The dispatcher will pass a mode. Default is `rigorous`.

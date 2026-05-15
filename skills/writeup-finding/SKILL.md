@@ -17,6 +17,20 @@ You are drafting a concise technical brief for a finding produced by the proofre
 
 The user may request **`latex`** (default, suitable for pasting into a paper-revision project) or **`markdown`** (suitable for a project log or GitHub issue). If unspecified, ask.
 
+## Intent and audience
+
+A finding brief can serve several audiences along a spectrum from private to public. The user's intent shapes the tone, the structural emphasis, and how much context the brief duplicates from the paper. Ask once if the intent isn't clear from the conversation:
+
+- **Private note** (default if unstated). Audience: future-you, six months from now. Bias toward complete reasoning even at the cost of redundancy with the audit — the reader is reconstructing context cold. Hedging language is fine where the evidence supports it.
+- **Coauthor share.** Audience: people who already know the paper. Compress background. Lead with the broken proof step and the proposed fix. Honest disagreement is welcome — coauthors push back, so present the strongest evidence rather than the most cautious framing.
+- **Successor-paper footnote.** Audience: readers of a follow-up paper that builds on the affected result. Explain the issue without alarming readers about the successor's correctness — emphasize what was wrong in the prior paper, what is in fact true, and what specifically depends on the corrected statement going forward.
+- **Public errata entry.** Audience: anyone who cites the paper. The brief is the public record. Use restrained, declarative language. Lead with the corrected statement and the date the issue was identified. Avoid speculation about *why* the original was wrong — describe what is, not what should have been.
+- **Formal venue erratum.** Audience: program chair / journal editor + the community. Most structured: explicit citation of the affected result; the nature of the error in 1–2 sentences; the corrected statement (with full proof or proof sketch); acknowledgement of the discoverer if external; impact statement on downstream results. Closer in form to a short paper than to a memo.
+
+Tone discipline across the spectrum: as the audience becomes more public, drop hedging language (*"we believe"*, *"appears to"*) in favor of declarative statements where evidence supports them — and conversely, do *not* declare an error you have only inferred. Public-facing briefs that overclaim are worse than private ones that hedge.
+
+The eight-section Document Structure below is the maximum form; private and coauthor briefs may compress or merge sections (e.g., fold Background into Overview), while errata briefs may expand Suggested Fix into a full corrected proof.
+
 ## Inputs
 
 Required:

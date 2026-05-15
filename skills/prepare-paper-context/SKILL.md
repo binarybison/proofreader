@@ -22,6 +22,18 @@ When the author has the `.tex` source (their own paper or a coauthor's), use it 
 - **Bibliography is structured.** `\bibitem` / `.bib` entries are machine-readable.
 - **Patches are possible.** With LaTeX source available, the [`annotate-latex`](../annotate-latex/SKILL.md) skill can produce in-place review annotations.
 
+## When PDF is the natural input
+
+For retrospective audits of an author's own already-published work, the LaTeX source is often no longer accessible — the paper exists only as a PDF in the venue's proceedings, sometimes years or decades after submission. This is the expected case for that workflow, not a fallback. PDF extraction is lossier than LaTeX parsing, but the downstream audit skills are calibrated to consume it.
+
+The discipline in this case is to make the loss *visible* rather than hide it:
+
+- Surface extraction warnings prominently in the output — mangled equations, ambiguous theorem boundaries, lost cross-references, unparsed tables.
+- For any theorem whose statement looks math-heavy or notation-dense, flag it for the author to verify against the published PDF before trusting downstream verdicts.
+- When the bibliography is not cleanly recovered (common for older two-column PDFs), do not invent citations — record what you have and note that the bibliography section is partial.
+
+Downstream skills will treat extraction warnings as a signal to scrutinize affected results more carefully; the audit may end up flagging a result as `uncertain` for extraction reasons rather than substantive reasons, which is the right behavior.
+
 ## Inputs
 
 One of:
