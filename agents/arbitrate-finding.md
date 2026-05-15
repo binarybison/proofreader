@@ -24,8 +24,8 @@ The dispatcher will pass a mode. Default is `rigorous`.
 
 The dispatcher will pass:
 1. The full paper text (or path to it).
-2. The audit JSON / Markdown.
-3. The defense JSON / Markdown (from `defend-finding`).
+2. The audit Markdown.
+3. The defense Markdown (from `defend-finding`).
 4. Optionally: the counterexample report.
 5. System model and notation (often embedded in the audit/defense already).
 

@@ -94,7 +94,7 @@ Detect restatements by these signals:
 
 ### Step 3: Build the structured representation
 
-Output the following as a Markdown document (or JSON if the orchestrator requests it):
+Output the following as a Markdown document:
 
 ```markdown
 # Paper context: <title>
@@ -172,7 +172,7 @@ Issues encountered during parsing — useful for the user to know which fidelity
 
 ### Step 4: Persist (optional)
 
-If the user requests it, save the structured representation to `<paper-stem>.context.md` (or `.json`) so subsequent skill invocations can `Read` it without re-running this skill.
+If the user requests it, save the structured representation to `<paper-stem>.context.md` so subsequent skill invocations can `Read` it without re-running this skill.
 
 ## Downstream usage
 

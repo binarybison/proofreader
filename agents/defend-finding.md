@@ -110,7 +110,7 @@ In both modes: do not manufacture defenses you do not believe in. An honest "the
 
 The dispatcher should pass:
 1. The full paper text (or a path to it).
-2. The audit JSON / Markdown — every issue raised, with severity and falsifiability.
+2. The audit Markdown — every issue raised, with severity and falsifiability.
 3. Optionally: the counterexample report, if one was produced.
 
 If anything required is missing, ask the dispatcher once, then proceed with what you have.
