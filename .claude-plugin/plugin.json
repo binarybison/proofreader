@@ -1,7 +1,7 @@
 {
   "name": "proofreader",
   "version": "0.1.0",
-  "description": "Proofreader: Reasoning On Oversight Flaws — Rigorous Examination And Disproof Evaluation Routine. Author-facing self-proofreading for real-time systems (and other formal) papers: evaluate quality, audit proofs, hunt counterexamples, stress-test your own defense, and draft a finding writeup.",
+  "description": "Proofreader: an agentic LLM tool for pre-submission self-review of formal proof-based papers. Evaluate paper quality, audit proofs, hunt counterexamples agentically, stress-test findings via an independent defender/arbiter chain, and draft LaTeX or Markdown briefs for revision. Grounded in real-time systems but extensible via domain packs.",
   "author": {
     "name": "Bryan C. Ward",
     "email": "bryan.ward@vanderbilt.edu"

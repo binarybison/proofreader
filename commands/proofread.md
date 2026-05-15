@@ -23,7 +23,9 @@ Run the full Proofreader pipeline on a single paper. User argument: `$ARGUMENTS`
 
 Before launching, give the user a one-line plan and wait for confirmation, unless the user invoked with explicit `confirm`:
 
-> *"Plan: evaluate the paper, audit ~N likely-flagged proofs (one call each), hunt counterexamples on ~M (in subagents), stress-test confirmed findings via fresh defender + arbiter subagents, write up. Estimated 30–90 minutes wall time, 200k–800k tokens depending on paper length and difficulty. Proceed?"*
+> *"Plan: evaluate the paper, audit ~N likely-flagged proofs (one call each), hunt counterexamples on ~M (in subagents), stress-test confirmed findings via fresh defender + arbiter subagents, write up. Expect this to take a while and use a non-trivial amount of tokens — the counterexample subagent iterates Python verification scripts agentically, and the audit / defender / arbiter calls scale with the number of flagged results. Proceed?"*
+
+Do not fabricate specific token-count or wall-time estimates. If the user asks for one, say honestly that the plugin does not yet have calibrated per-paper measurements and the agentic counterexample stage makes per-paper cost highly variable; suggest they monitor their provider's usage dashboard during the run, or invoke `evaluate-paper` alone first to see how many results would escalate to the more expensive stages.
 
 ### Stage 1: evaluate-paper
 

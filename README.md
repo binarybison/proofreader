@@ -1,14 +1,14 @@
 # Proofreader
 
-> **P**roofreader **R**easoning **O**n **O**versight **F**laws — **R**igorous **E**xamination **A**nd **D**isproof **E**valuation **R**outine
+An agentic LLM tool for pre-submission self-review of formal proof-based papers. Designed for the author who wants to find the holes in their own proofs before a reviewer — or a later reader — does.
 
-A set of LLM skills for **rigorously self-proofreading** real-time systems (and other formal) papers before you submit them. Designed for the author who wants to find the holes in their own proofs before a reviewer does.
+> The name is a deliberate double entendre: the tool proofreads, in the copy-editor's sense, by reading proofs, in the formal sense.
 
-> "Proofreading" here means scrutinizing the *correctness of the formal arguments* — not just typo-hunting, and **not** mechanized proof checking in Lean / Rocq / Coq. This is human-language proof scrutiny, executed by an LLM with optional Python code execution for counterexample search.
+> "Proofreading" here means scrutinizing the *correctness of the formal arguments* — not just typo-hunting, and **not** mechanized proof checking in Lean / Rocq / Coq. This is human-language proof scrutiny, executed by an LLM with optional Python code execution for counterexample search. Proofreader screens; it does not certify. Its output is stochastic and *neither sound nor complete* — it can flag results erroneously, and it can miss flaws entirely. We have nonetheless found it useful, including in cases where independent authors confirmed the findings.
 
 ## What it does
 
-Three **inline skills** (run in the main conversation), three **subagents** (fresh isolated context), and two **slash-command orchestrators**.
+Three **inline skills** (run in the main conversation), four **subagents** (fresh isolated context), and three **slash-command orchestrators**.
 
 ### Inline skills
 
@@ -33,8 +33,9 @@ These run in fresh, isolated contexts. The main conversation dispatches them and
 
 | Command | What it does |
 |---|---|
-| `/stress-test-defense <result>` | Dispatches the defender subagent, then the arbiter subagent, then synthesizes their outputs. Use when you want to gut-check whether an audit finding is real. |
 | `/proofread <paper.pdf>` | Full pipeline: `evaluate-paper` → `audit-proof` (per flagged result) → `find-counterexample` (per likely-flawed audit, in subagents) → `defend-finding` + `arbitrate-finding` (in subagents) → `writeup-finding`. Single Markdown report at the end. |
+| `/stress-test-defense <result>` | Dispatches the defender subagent, then the arbiter subagent, then synthesizes their outputs. Use when you want to gut-check whether an audit finding is real. |
+| `/diff-proofread <old> <new>` | Compares two versions of a draft and reports what was fixed, what regressed, what's new, and what's unchanged. Use it across revision rounds to confirm fixes took and to catch regressions early. |
 
 ### Why subagents?
 
@@ -98,7 +99,45 @@ The fastest path, end-to-end:
 > /proofread papers/my-rtss-submission.pdf
 ```
 
-But every skill, agent, and command is independently invokable. You rarely want the full pipeline — the patterns below cover most real workflows.
+But every skill, agent, and command is independently invokable. The two workflows below show the typical end-to-end stories; the patterns after them cover narrower one-off uses.
+
+## Workflows
+
+### Pre-submission self-review
+
+The intended workflow: you have a draft, you want to find the holes before a reviewer does.
+
+1. **Hand it the LaTeX source if you have it.** Theorem-environment boundaries, math symbols, and `\label`/`\ref` topology survive LaTeX extraction exactly; PDF extraction is heuristic and lossier. Run `prepare-paper-context` once at the start of the session so downstream skills don't re-parse.
+2. **Run the full pipeline in adversarial mode.**
+   ```text
+   > /proofread papers/my-draft.tex mode=adversarial
+   ```
+   The orchestrator prints a per-stage plan and waits for confirmation before launching. Expect this to take a while and use a non-trivial amount of tokens: the audit stage runs once per flagged result, the counterexample subagent iterates Python verification scripts agentically until it succeeds or exhausts its attack-surface list, and the defender / arbiter chain runs separately per finding. Variance is large — a paper with two clean theorems is much cheaper than one with eight contested ones. Watch your provider's usage dashboard if cost matters. Adversarial mode is the right setting here: you want the worst plausible reading of your own work, so you can decide what to harden *before* submission.
+3. **Triage findings as they come back.** For each `true_positive` / `likely_true_positive`, decide: is the fix a tightened precondition, a proof rewrite, or a result revision? The two-axis verdict (result truth vs. proof soundness) tells you which.
+4. **Inject the findings into your source.** Run `annotate-latex` to write `% PROOFREADER` comments at the affected proof environments and labeled equations. The comments don't affect the rendered PDF, but they show up next to the proof text in your editor.
+5. **Revise in your normal editor workflow.** Address one annotation at a time; remove it (or delete it via the `sed` line in the index file) as you fix the underlying issue.
+6. **Verify the fixes took.**
+   ```text
+   > /diff-proofread papers/my-draft-v1.tex papers/my-draft-v2.tex mode=adversarial
+   ```
+   The diff report leads with regressions — these are the highest-priority signal, because they mean your fix introduced a new problem. Fixes, unfixed issues, and new findings come next.
+7. **Iterate** if regressions or new findings appear; otherwise submit.
+
+A useful habit: keep the proofreader report directory (`proofreader-report-v1/`) under version control alongside the draft. The next `/diff-proofread` can reuse it cheaply and the audit history becomes a record you can hand to coauthors or future-you.
+
+### Reviewing your past publications
+
+The retrospective workflow: you want to audit results you've already published — to issue errata, inform follow-up papers that build on those results, or sharpen your own sense of what patterns to scrutinize harder in current drafts.
+
+1. **Pick what to review, in priority order.** Token cost compounds across a publication record, so don't bulk-run blindly. Prioritize: results that downstream papers (yours or others') rely on; headline theorems whose retraction would matter; anything where you've had a nagging doubt; restated theorems from prior work (these are high-leverage for `verify-restatement`).
+2. **Use the LaTeX source if you still have it; otherwise the PDF.** PDF extraction is lossier for older papers — surface any mangled equations from `evaluate-paper`'s extraction warnings before trusting the verdicts. If a paper's `.tex` source is still on disk, prefer it.
+3. **Run `/proofread mode=adversarial`** on each paper. Same rationale as pre-submission: you want the harshest plausible reading, the way a reader might find an issue later.
+4. **Let the defender / arbiter chain filter false positives.** Older papers tend to defer proofs to companion technical reports, appendices on author webpages, or follow-up journal versions; the `defend-finding` subagent can fetch those (with your permission) and surface defenses the audit missed. Trust the arbiter's `true_positive` / `likely_true_positive` verdicts — the chain is designed to be conservative against the audit.
+5. **Cross-check against any existing public errata** before treating a finding as novel. Some issues may already be acknowledged by you, a coauthor, or a follow-up paper.
+6. **Selectively run `verify-restatement`** on theorems your paper restated from prior work. Precondition drift and conclusion strengthening in restatements are a common, hard-to-spot flaw family that propagates as if it were the original result.
+7. **Decide what to do with each confirmed finding.** Options, in roughly increasing severity: a private note for future-you; a footnote in a successor paper; an entry on your public errata page; a formal erratum to the venue; in rare cases, contacting authors who cited the affected result. `writeup-finding` will draft a clean LaTeX or Markdown brief for any of these.
+
+The compounding value: even findings you choose not to act on tighten your intuition for the next paper. The flaw patterns Proofreader catches in your past work are typically the same ones it will catch in your next draft — and over time you internalize them.
 
 ## Patterns beyond `/proofread`
 
@@ -229,15 +268,15 @@ For a paper with several theorems you want audited independently:
 
 Each audit runs inline in the main conversation (so you can follow along), but Claude Code dispatches independent calls concurrently where the tool allows.
 
-### Pattern 10 — Pipeline-parity mode
+### Pattern 10 — Harshest-plausible self-review
 
-You want behavior that matches the original [paper_evaluation](https://github.com/bcward/paper-evaluation) research pipeline as closely as possible (aggressive Phase-1 flagging, conservative arbiter):
+You want the worst plausible interpretation of your own draft, so you can decide what to harden before submission rather than after:
 
 ```text
 > /proofread papers/my-draft.pdf mode=adversarial
 ```
 
-Adversarial mode tightens `evaluate-paper`'s thresholds to match the original pipeline's "cast a wide net" Phase 1 stance, and instructs the arbiter to break ties against the paper. Use this when you want the harshest plausible reading of your own work before submission.
+Adversarial mode tightens `evaluate-paper`'s thresholds (cast a wide net during triage) and instructs the arbiter to break ties against the paper. Use this as your pre-submission "be the harshest reviewer you can" pass.
 
 ## Composition with other tools
 
@@ -271,15 +310,6 @@ Proofreader is intentionally narrow. It does not comment on prose clarity, abstr
 
 If you want general writing review, run a separate tool. If you want proof scrutiny, run Proofreader.
 
-## Examples gallery
-
-The [`examples/`](examples/) directory has worked case studies showing what Proofreader catches on papers with known correctness issues. Each case is a 10-minute end-to-end read with the actual audit excerpt, the counterexample, the verification script, and the arbiter's verdict — useful both for new users deciding whether the tool is worth running and for contributors learning what a good case writeup looks like.
-
-Current contents:
-- [`baruah-rtns-2020-ilp`](examples/baruah-rtns-2020-ilp/) — an ILP schedulability encoding with a missing totality constraint on ordering variables. Pattern caught: missing precondition (Pattern family 3 in [`scheduling-theory`](domain-packs/scheduling-theory.md)). Includes a runnable [verification-script.py](examples/baruah-rtns-2020-ilp/verification-script.py).
-
-Contributions welcome — see [examples/README.md](examples/README.md) for the discretion note and contribution model.
-
 ## Domain packs
 
 Proofreader's flaw-pattern coverage is extensible via [`domain-packs/`](domain-packs/). The baseline `scheduling-theory` pack covers classical RT scheduling; `network-calculus` is a starter pack; packs for control-theoretic bounds, probabilistic real-time, distributed RT, DAG-parallel, and shared-resource analysis are planned. Contribute a pack hand-written or generated mechanically from a subfield-specific flaw corpus — see [domain-packs/README.md](domain-packs/README.md).
@@ -290,25 +320,25 @@ Proofreader accepts `.tex` source as a first-class input format, alongside PDF. 
 
 ## Provenance
 
-These skills were distilled from a research pipeline ([Ward, 2026, in preparation](https://github.com/bcward/paper-evaluation)) that uses LLMs as first-pass peer reviewers across published RT systems papers. The author-facing variants in this plugin emit human-readable Markdown instead of pipeline-bound JSON, and the formal-result inventory and per-result audit are split into separate skills, while the adversarial author-defense and arbiter stages are run as fresh-context subagents — the same structural independence the original pipeline gets from making each role a separate API call.
+Proofreader is described in *Proofreader: An Agentic LLM Tool for Auditing Proof-Based Papers* ([Ward, 2026, manuscript](https://github.com/binarybison/proofreader)). The plugin's flaw-pattern library is empirically grounded — it was distilled from a retrospective screening pass over a corpus of real-time systems papers, in which a precursor pipeline acted as a mechanical first-pass reviewer to surface candidate flaws for human follow-up. Proofreader is the author-facing evolution of that work: rather than screening published papers retrospectively, it is meant to be run by authors on their own drafts (or their own prior work), before a reviewer or later reader has the chance to find the same issues. The skills in this plugin produce human-readable Markdown instead of pipeline-bound JSON, split the inventory and per-result audit into separately invocable skills, and run the defender and arbiter stages as fresh-context subagents — the same structural independence the precursor pipeline obtained by making each role a separate API call.
 
 ## How to cite
 
-If `proofreader` contributes to a paper of yours — whether by catching an issue you fixed before submission, or as the methodology in a paper-about-papers — please cite the source pipeline:
+If Proofreader contributes to a paper of yours — whether by catching an issue you fixed before submission, or as the methodology in a paper-about-papers — please cite:
 
 ```bibtex
 @misc{ward2026proofreader,
   author = {Ward, Bryan C.},
-  title  = {{Proofreader}: {R}easoning {O}n {O}versight {F}laws --
-            {R}igorous {E}xamination {A}nd {D}isproof {E}valuation {R}outine},
+  title  = {{Proofreader}: An Agentic {LLM} Tool for Auditing
+            Proof-Based Papers},
   year   = {2026},
-  note   = {LLM-assisted self-proofreading for real-time systems papers;
-            derived from the paper-evaluation pipeline},
+  note   = {Manuscript; Claude Code plugin for pre-submission
+            self-review of formal proof-based papers},
   url    = {https://github.com/binarybison/proofreader}
 }
 ```
 
-Replace this entry with the formal venue citation once the underlying methodology paper is published.
+Replace this entry with the formal venue citation once the paper is published.
 
 ## License
 

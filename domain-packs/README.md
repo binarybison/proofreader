@@ -58,8 +58,6 @@ If you have a corpus of confirmed flaws in your subfield (analogous to the sourc
 3. Have Claude draft the pack in the same structure as [`scheduling-theory.md`](scheduling-theory.md), grounding each mechanism in concrete example sentences from the flaw notes.
 4. Hand-edit the result for accuracy and tone. Mechanical drafts tend to overgeneralize; the maintainer's job is to keep specificity high.
 
-The repo's [examples](../examples/) directory has worked instances of the patterns in action.
-
 ## Pack file format
 
 ```markdown
