@@ -203,20 +203,7 @@ You want quality scores and a theorem inventory to decide where to submit, but n
 
 Returns the report with per-result verdicts. Stop here if nothing flagged worse than `likely_correct`. Run `audit-proof` on the items that came back `uncertain` or worse.
 
-### Pattern 5 — Counterexample against a competitor's claim
-
-You're writing a paper and want to argue that a prior work's bound is loose (or unsafe). Use Proofreader on *their* paper, not yours.
-
-```text
-> Use find-counterexample on Equation 7 of papers/prior-work-ecrts23.pdf.
->   The paper claims this is a safe upper bound on response time under
->   global EDF with self-suspensions. I think it omits the self-suspension
->   delay penalty entirely; try task sets with long suspensions.
-```
-
-If the agent finds a counterexample, run `writeup-finding` to draft the LaTeX brief you'd put in your related-work section.
-
-### Pattern 6 — Generate the writeup from existing data
+### Pattern 5 — Generate the writeup from existing data
 
 You already did the audit and built the counterexample manually. You just want the brief.
 
@@ -231,7 +218,7 @@ You already did the audit and built the counterexample manually. You just want t
 
 Returns a compilable LaTeX brief. Useful as a starting draft for an erratum, an internal memo, or a paper revision note.
 
-### Pattern 7 — Audit chained with stress-test, skipping CX
+### Pattern 6 — Audit chained with stress-test, skipping CX
 
 The audit found a proof-style critique (gaps, unclear steps) but no falsifiable claim. CX search would waste effort; you still want the adversarial review.
 
@@ -244,7 +231,7 @@ The audit found a proof-style critique (gaps, unclear steps) but no falsifiable 
 
 The defender will focus on whether the gaps are presentation-only or load-bearing (apply the four-question filter from `audit-proof`); the arbiter will weigh that against the audit's claims.
 
-### Pattern 8 — Defense-only, anticipate referee objections
+### Pattern 7 — Defense-only, anticipate referee objections
 
 You want to know how a sympathetic but honest reader would defend your paper against a likely referee objection. Skip the arbiter step.
 
@@ -257,7 +244,7 @@ You want to know how a sympathetic but honest reader would defend your paper aga
 
 The defender returns the strongest legitimate defense plus an `acknowledged flaws` section if any of the objection lands. Useful pre-submission to decide whether to harden the proof or revise the claim.
 
-### Pattern 9 — Parallel audit of multiple independent theorems
+### Pattern 8 — Parallel audit of multiple independent theorems
 
 For a paper with several theorems you want audited independently:
 
@@ -268,7 +255,7 @@ For a paper with several theorems you want audited independently:
 
 Each audit runs inline in the main conversation (so you can follow along), but Claude Code dispatches independent calls concurrently where the tool allows.
 
-### Pattern 10 — Harshest-plausible self-review
+### Pattern 9 — Harshest-plausible self-review
 
 You want the worst plausible interpretation of your own draft, so you can decide what to harden before submission rather than after:
 
