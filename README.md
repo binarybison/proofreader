@@ -58,22 +58,16 @@ You set the mode by including `mode: adversarial` (or `mode: rigorous`) in your 
 
 ### Claude Code (recommended)
 
-This repo is a Claude Code plugin. Two ways to install:
-
-**From a local clone** (fastest for iterating on the plugin):
+This repo is a Claude Code plugin. It is not yet published to a public marketplace, so installation is from a local clone. Claude Code requires two steps: register the clone as a local marketplace, then install the plugin from it.
 
 ```bash
 git clone https://github.com/binarybison/proofreader.git ~/proofreader
 # Then from inside any Claude Code project:
-/plugins install ~/proofreader
+/plugin marketplace add ~/proofreader
+/plugin install proofreader@binarybison
 ```
 
-**From a marketplace** (once published):
-
-```bash
-/plugins marketplace add binarybison/proofreader
-/plugins install proofreader@binarybison
-```
+The marketplace name (`binarybison`) comes from `.claude-plugin/marketplace.json` in this repo; the plugin name (`proofreader`) comes from `.claude-plugin/plugin.json`. Re-pull the clone (`git pull` in `~/proofreader`) to update — Claude Code re-reads the plugin from disk, so no reinstall is needed for edits to skill/agent/command Markdown.
 
 After install, skills auto-load on relevant prompts; subagents are dispatchable by the orchestrators or by name; `/proofread` and `/stress-test-defense` are available as slash commands.
 

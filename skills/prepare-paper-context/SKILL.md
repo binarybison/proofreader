@@ -51,7 +51,7 @@ Optionally: a path to a `.bib` file if the bibliography is external.
 
 Inspect the supplied path:
 - Ends in `.tex`? → LaTeX single file or main file. Read it; check for `\input{}` / `\include{}` / `\subfile{}` directives.
-- Ends in `.pdf`? → PDF. Extract via `pymupdf4llm` if available, else `pymupdf`, falling back to plain `pdftotext` only as last resort.
+- Ends in `.pdf`? → PDF. Probe extractors in order (`pymupdf4llm`, `pymupdf`, `pdftotext`) — see Step 2's PDF branch for the exact probe and the reporting requirements.
 - A directory? → scan for `main.tex` / `paper.tex` / `<dirname>.tex`. If no main `.tex`, fall back to the largest PDF.
 - Plain text? → assume already extracted; skip extraction.
 
@@ -64,6 +64,13 @@ Inspect the supplied path:
 - Keep theorem-like environments verbatim, with their labels.
 
 **For PDF**:
+- **Probe extractors in order and record which one was used.** This is required output — the user needs to know which fidelity tier produced their context.
+  1. `python -c "import pymupdf4llm"` — *preferred.* Markdown-structured output preserves headings, lists, and tables.
+  2. `python -c "import pymupdf"` (a.k.a. `fitz`) — acceptable fallback. Plain text, no structure preservation.
+  3. `pdftotext --version` (poppler-utils) — last-resort fallback. Loses the most layout information.
+- Use the first one that imports/runs successfully. Always set the `**PDF extractor**` field of the output to one of `pymupdf4llm` | `pymupdf` | `pdftotext`, and **if the active extractor is not `pymupdf4llm`, add an extraction warning of the form**:
+  > `pymupdf4llm` is the preferred PDF extractor but is not installed in this environment; falling back to `<tool>`. Install with `pip install pymupdf4llm` and re-run for better math/table fidelity.
+- If none of the three are available, stop and tell the user: "No PDF extractor available — install one of `pymupdf4llm` (preferred), `pymupdf`, or `pdftotext` (poppler-utils) and re-run."
 - Extract text. Note: math notation will be approximate. Flag any obviously-mangled equations.
 - Heuristically section-detect (most papers have numbered sections; treat all-caps or bold lines as candidate section headers).
 - Identify theorem-like blocks by formatting cues ("Theorem 3.", "Lemma 2.1", italic statement followed by "Proof.").
@@ -101,6 +108,7 @@ Output the following as a Markdown document:
 
 **Source format**: pdf | latex_single | latex_project | text
 **Source path**: <path>
+**PDF extractor**: pymupdf4llm | pymupdf | pdftotext  *(PDF inputs only; omit for LaTeX/text. Annotate with "(preferred)" or "(fallback — `pymupdf4llm` not installed)" as applicable.)*
 **Title**: <title, parsed from \title{} or PDF metadata or first heading>
 **Authors**: <list, parsed from \author{} or PDF metadata>
 
@@ -168,6 +176,7 @@ Issues encountered during parsing — useful for the user to know which fidelity
 - "Equation 5 contains a complex macro `\sched` that could not be expanded automatically"
 - "PDF extraction: theorem block at page 7 has unusual formatting; manually verify"
 - "No `.aux` file found at `paper.aux`; rendered page numbers omitted from label topology"
+- "`pymupdf4llm` is the preferred PDF extractor but is not installed; falling back to `pymupdf`. Install with `pip install pymupdf4llm` for better math/table fidelity." *(omit this warning entirely when `pymupdf4llm` is the active extractor)*
 ```
 
 ### Step 4: Persist (optional)
@@ -188,6 +197,7 @@ Downstream skills should accept either a path to a paper or a pre-prepared conte
 
 ## Tooling notes
 
-- `pymupdf4llm` is preferred for PDF extraction because it preserves Markdown-like structure (headings, lists, tables). Falls back to `pymupdf` if `pymupdf4llm` isn't installed; falls back to `pdftotext` from poppler-utils if neither is available.
+- `pymupdf4llm` is preferred for PDF extraction because it preserves Markdown-like structure (headings, lists, tables). Falls back to `pymupdf` if `pymupdf4llm` isn't installed; falls back to `pdftotext` from poppler-utils if neither is available. Install the preferred extractor with `pip install pymupdf4llm`.
+- Always report the active extractor in the output's `**PDF extractor**` field, and surface a clear extraction warning when falling back so the user knows to install `pymupdf4llm` for higher fidelity.
 - LaTeX extraction is straight text processing — no external tools required.
 - Multi-file project resolution uses simple text substitution; doesn't run `pdflatex`. If a `.aux` file is present, you may consult it for label/page-number mapping but it's not required.

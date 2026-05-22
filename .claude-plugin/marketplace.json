@@ -1,0 +1,15 @@
+{
+  "name": "binarybison",
+  "description": "Local marketplace exposing the proofreader plugin from this repo.",
+  "owner": {
+    "name": "Bryan C. Ward",
+    "email": "bryan.ward@vanderbilt.edu"
+  },
+  "plugins": [
+    {
+      "name": "proofreader",
+      "source": ".",
+      "description": "Agentic LLM tool for pre-submission self-review of formal proof-based papers."
+    }
+  ]
+}
