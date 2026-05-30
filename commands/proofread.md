@@ -83,9 +83,10 @@ After each audit returns, write the full audit Markdown to `proofreader-report/a
 Announce progress: *"Stage 2: auditing Theorem 3 (1/K)…"* as you go.
 
 After all audits, identify:
-- **CX candidates**: audits with verdict `likely_flawed` or `flawed`, *and* at least one issue with `Counterexample-falsifiable? yes` and `severity ≥ moderate`.
-- **Stress-test-only candidates**: audits with verdict `likely_flawed` but no falsifiable issues — defender + arbiter still useful, but skip CX.
-- **Expository-only**: audits with verdict `uncertain` and no falsifiable issues — recommend proof rewrite, skip the rest.
+- **CX candidates**: any flagged audit (verdict `uncertain`, `likely_flawed`, or `flawed`) with at least one issue marked `Counterexample-falsifiable? yes` and `severity ≥ moderate`. **`uncertain` results are included** — a concern the audit could not resolve from the proof text is exactly what a counterexample hunt is for.
+- **Stress-test-only candidates**: flagged audits with no falsifiable issue (no useful CX attack surface) — skip CX, but still run defender + arbiter.
+
+**Every flagged result reaches the arbiter.** Whether a result ends up with a constructed counterexample, a counterexample hunt that found nothing, or no falsifiable issue at all, it proceeds to Stage 4 (defender + arbiter) for a final true/false-positive verdict. The pipeline does **not** "recommend a proof rewrite and stop": a flagged result is only ever resolved by an arbiter verdict (`true_positive` / `likely_true_positive` / `likely_false_positive` / `false_positive`) or an explicit `inconclusive`. This guarantees no flagged result is silently dropped without adjudication — even when the arbiter is very likely to find no problem, the run is recorded so the verdict is auditable and the result is not left in limbo.
 
 ### Stage 3: find-counterexample (subagent, per CX candidate)
 
@@ -112,7 +113,7 @@ This feedback loop targets one of the largest false-positive sources in the orig
 
 ### Stage 4: stress-test-defense (defender + arbiter subagents)
 
-For each result with either a constructed counterexample or a `likely_flawed` audit:
+For **every** flagged result (`uncertain` / `likely_flawed` / `flawed`) — whether it has a constructed counterexample, a counterexample hunt that returned `no_counterexample`, or no falsifiable issue at all:
 
 1. Dispatch the `defend-finding` subagent with: full paper text, audit, counterexample (if any), mode. When the defense Markdown returns, write it to `proofreader-report/defenses/<label>.md`.
 2. **After** the defender returns, dispatch the `arbitrate-finding` subagent with: full paper text, audit, defense, counterexample (if any), mode. When the arbiter Markdown returns, write it to `proofreader-report/arbiters/<label>.md`.
@@ -162,10 +163,10 @@ For each `inconclusive` arbiter verdict:
 For each `likely_false_positive` / `false_positive`:
 - **<Result label>**: brief reason the audit's concern did not hold up. Useful record so future-you doesn't accidentally re-flag. → [arbiters/<label>.md](arbiters/<label>.md)
 
-## Audits without falsifiable concerns
+## Audits without falsifiable concerns (proof-style / expository only)
 
-For each result flagged in Stage 1 but where Stage 2 found only proof-style/expository issues:
-- **<Result label>**: list the suggested proof rewrites. No CX or stress-test was run for these. → [audits/<label>.md](audits/<label>.md)
+For each result flagged in Stage 1 where Stage 2 found only proof-style/expository issues (no falsifiable counterexample surface):
+- **<Result label>**: list the suggested proof rewrites. CX was skipped (nothing to falsify), but the defender + arbiter still ran — the arbiter verdict is the resolution. → arbiter: [arbiters/<label>.md](arbiters/<label>.md) · audit: [audits/<label>.md](audits/<label>.md)
 ```
 
 ## Communication discipline
