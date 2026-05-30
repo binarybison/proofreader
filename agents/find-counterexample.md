@@ -36,6 +36,18 @@ If anything required is missing, ask the dispatcher once, then proceed with what
 
 ## Investigation Process
 
+### Step 0: Verify the governing formula against the source (mandatory before building anything)
+
+A counterexample is only valid if the instance genuinely satisfies the paper's preconditions — and the most important precondition is usually a **certifying condition** ("the test in Eq. (N) passes"). If that condition reached you through lossy PDF text extraction, you may build a "counterexample" against a formula the paper never printed. This is a real and recurring failure: a `⌈·⌉` extracted as `⌊·⌋` makes a certifying test look satisfiable when it is not, and the whole break evaporates under the true formula.
+
+Therefore, before constructing anything:
+
+- Identify the exact expression(s) your counterexample's validity will depend on — the certifying test, the bound being violated, the set membership in any sum, the quantifier ranges.
+- If the source is a PDF (or the input is marked `Formula fidelity: UNVERIFIED`, or any equation looks notation-dense / was typeset as a figure), **read the relevant PDF page as an image** (`Read` the PDF with `pages: <n>`) and transcribe those expressions verbatim from the rendering. Pin down floor vs ceiling, every `±1`, `≤` vs `<`, and the precise index set of every sum.
+- Encode the **image-verified** formulas in your scripts. If you discover the extracted text differed from the printed equation, that discrepancy is itself a primary result — report it whether or not a counterexample survives.
+
+If you cannot resolve a load-bearing formula even from the image, say so and report `inconclusive` for that attack surface rather than guessing a reading.
+
 ### Step 1: Understand and plan
 
 - Restate the claim in your own words. Distinguish what the paper *claims* (the advertised bound) from what the proof *actually* establishes (which may be weaker).
@@ -53,7 +65,8 @@ For each promising attack surface:
 - Computes the result using the paper's formula or method → `paper_result`.
 - Computes the correct result independently (simulation / exact / exhaustive) → `correct_result`.
 - Compares them and reports any discrepancy.
-- Verifies that all preconditions are satisfied; print which were checked and how.
+- Verifies that all preconditions are satisfied — **using the image-verified formula from Step 0** — and prints which were checked and how. Confirm explicitly that the instance *passes the paper's certifying test*; a break is only meaningful for an instance the paper certifies.
+- **If a rounding direction, `±1`, or set membership in the certifying condition was at all ambiguous, compute the precondition both ways** and print both. If the instance only satisfies the test under the reading you cannot confirm from the image, the counterexample is not yet valid — go back to Step 0 and resolve the reading before reporting `counterexample_found`.
 
 Save to a file. Convention: `<label>-<attack-surface>.py` in `output_dir` if the dispatcher passed one, otherwise `cx_<result_label>_<attack_surface>.py` in the current working directory. Use filesystem-safe slugs for both `label` and `attack_surface`.
 
@@ -130,6 +143,7 @@ What the paper claims, in plain language.
 ## Common pitfalls (re-read before reporting a counterexample)
 
 - Counterexample violates one of the theorem's preconditions. Re-check **every** precondition before claiming a break.
+- **The precondition you checked came from extracted text, not the printed equation.** If the source is a PDF, the certifying test (floor vs ceiling, `±1`, the sum's index set) may have been mis-extracted. Confirm the instance passes the *image-verified* test (Step 0) before reporting a break — a counterexample to a formula the paper never printed is not a counterexample.
 - Mental arithmetic instead of Python. Re-run the script.
 - Confusing paper notation with your own. Re-read definitions.
 - Giving up after one failed attempt — try all attack surfaces from the audit before reporting `no_counterexample`.

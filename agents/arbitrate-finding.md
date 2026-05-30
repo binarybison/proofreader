@@ -62,6 +62,8 @@ If the dispute hinges on material you cannot access (an external appendix, a cit
 - Issues that **probably** resolve in one direction based on available clues.
 - Issues that **cannot** be resolved without retrieving external material.
 
+**Before declaring any formula "unreadable from extraction" as residual uncertainty, read the PDF page as an image.** A dispute that "reduces to the exact form of Eq. (N)" — floor vs ceiling, a `±1`, a `≤`/`<`, the index set of a sum, a quantifier bound — is *not* unresolvable when the PDF is in hand: the equation may be typeset as a figure that text extraction garbled, but you can `Read` the PDF (`pages: <n>`) and see it directly. Do this whenever the verdict turns on a formula either side flagged as unreadable, mis-extracted, or disputed. Re-derive the disputed step from the image-verified equation and rule on the real formula. Only treat it as genuinely residual uncertainty if the rendered page itself is illegible (e.g., a poor scan). A formula that decides the verdict and sits in a figure you never opened is the single most common way this pipeline produces a confident wrong verdict.
+
 ### Step 6: Render verdict
 
 Weigh all evidence. Verdict should reflect the strongest conclusion the available evidence supports.

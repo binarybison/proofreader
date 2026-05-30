@@ -93,8 +93,19 @@ Specific red flags we have repeatedly observed in confirmed flaws across publish
 - **Split sub-jobs, reconvergent DAG paths, or multiple maxima treated as independent** when the underlying structure introduces coupling. False-independence flaws are subtle and RT-specific.
 - **An informal claim contradicted by another informal claim elsewhere in the paper** — particularly common in systems papers where prose summaries drift from the algorithmic detail.
 - **Off-by-one in a quantifier** — `∀ l > 1` versus `∀ l > 0` is the canonical example. Test the boundary value mentally.
+- **A rounding direction that decides safety** — `⌈·⌉` vs `⌊·⌋` in an occupancy/demand/interference bound. Floor where ceiling is correct *undercounts* and yields an unsafe bound; ceiling where floor is correct merely loses tightness. When a bound sums rounded terms, check the rounding direction is the conservative one for the claim.
 
 When you see one of these patterns, escalate the result's verdict to `uncertain` or worse, even if the proof "reads well". These patterns are strongly correlated with real errors in our experience reviewing RT-systems papers.
+
+### Extraction-fidelity discipline (PDF input)
+
+A verdict is only as trustworthy as the formula it rests on. Before you flag — or clear — any result whose correctness turns on the *exact* form of an equation (a rounding direction, a `±1`, a `≤`/`<`, a quantifier bound, the membership of an indexed set):
+
+1. Check the result's **Formula fidelity** marker from `prepare-paper-context`. If it is `UNVERIFIED` (equation typeset as a figure) or the equation looks notation-dense, do **not** trust the extracted text.
+2. **Read the PDF page as an image** (`Read` the PDF with `pages: <n>`) and transcribe the governing equation yourself, verbatim, from the rendering.
+3. State in the result's **Concern notes** that the formula was (or was not) image-verified, and which page.
+
+If you cannot image-verify a load-bearing formula, cap the verdict at `uncertain` and say *why* (extraction, not substance) — never emit `correct`/`likely_correct`/`flawed` on a formula you only saw through lossy text extraction.
 
 ## Output Format
 
