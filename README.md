@@ -322,8 +322,6 @@ If Proofreader contributes to a paper of yours — whether by catching an issue 
 }
 ```
 
-Replace this entry with the formal venue citation once the paper is published.
-
 ## License
 
 MIT — see [LICENSE](LICENSE). Pull requests welcome.
