@@ -307,7 +307,7 @@ Proofreader accepts `.tex` source as a first-class input format, alongside PDF. 
 
 ## Provenance
 
-Proofreader is described in *Proofreader: An Agentic LLM Tool for Auditing Proof-Based Papers* ([Ward, 2026, manuscript](https://github.com/binarybison/proofreader)). The plugin's flaw-pattern library is empirically grounded — it was distilled from a retrospective screening pass over a corpus of real-time systems papers, in which a precursor pipeline acted as a mechanical first-pass reviewer to surface candidate flaws for human follow-up. Proofreader is the author-facing evolution of that work: rather than screening published papers retrospectively, it is meant to be run by authors on their own drafts (or their own prior work), before a reviewer or later reader has the chance to find the same issues. The skills in this plugin produce human-readable Markdown instead of pipeline-bound JSON, split the inventory and per-result audit into separately invocable skills, and run the defender and arbiter stages as fresh-context subagents — the same structural independence the precursor pipeline obtained by making each role a separate API call.
+Proofreader is described in *Proofreader: Informally Auditing Formal Proofs with LLMs* ([Ward, 2026](https://my.vanderbilt.edu/bryancward/projects/proofreader/)). The plugin's flaw-pattern library is empirically grounded — it was distilled from a retrospective screening pass over a corpus of real-time systems papers, in which a precursor pipeline acted as a mechanical first-pass reviewer to surface candidate flaws for human follow-up. Proofreader is the author-facing evolution of that work: rather than screening published papers retrospectively, it is meant to be run by authors on their own drafts (or their own prior work), before a reviewer or later reader has the chance to find the same issues. The skills in this plugin produce human-readable Markdown instead of pipeline-bound JSON, split the inventory and per-result audit into separately invocable skills, and run the defender and arbiter stages as fresh-context subagents — the same structural independence the precursor pipeline obtained by making each role a separate API call.
 
 ## How to cite
 
@@ -316,12 +316,9 @@ If Proofreader contributes to a paper of yours — whether by catching an issue 
 ```bibtex
 @misc{ward2026proofreader,
   author = {Ward, Bryan C.},
-  title  = {{Proofreader}: An Agentic {LLM} Tool for Auditing
-            Proof-Based Papers},
+  title  = {{Proofreader}: Informally Auditing Formal Proofs with {LLMs}},
   year   = {2026},
-  note   = {Manuscript; Claude Code plugin for pre-submission
-            self-review of formal proof-based papers},
-  url    = {https://github.com/binarybison/proofreader}
+  url    = {https://my.vanderbilt.edu/bryancward/projects/proofreader/}
 }
 ```
 
