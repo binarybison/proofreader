@@ -34,6 +34,31 @@ The discipline in this case is to make the loss *visible* rather than hide it:
 
 Downstream skills will treat extraction warnings as a signal to scrutinize affected results more carefully; the audit may end up flagging a result as `uncertain` for extraction reasons rather than substantive reasons, which is the right behavior.
 
+### The dangerous failure mode: silently-plausible extraction errors
+
+The worst extraction errors are not the *obviously* mangled ones (`Σ Ci /Ti`) — those get flagged and scrutinized. The dangerous ones are extractions that come out **clean-looking but wrong**: a `⌈·⌉` ceiling read as a `⌊·⌋` floor, a dropped `+1`, a `≤` read as `<`, a flipped subscript range, a quantifier `∀ℓ>1` read as `∀ℓ>0`. These read as valid math, pass downstream unquestioned, and can manufacture a confident false finding (or hide a real one) because a *single character* in a load-bearing inequality changed.
+
+**Equations and proofs typeset as figures/images are the highest-risk source.** Many RT-systems papers render display equations (and sometimes whole proofs) as embedded images. Text extraction either drops these entirely or returns an OCR-style guess that *looks* like a transcription but was never in the text layer. The reader cannot tell a faithful transcription from a fabricated one.
+
+#### Step 2c (PDF only): detect math-as-figure regions
+
+While extracting, identify equations that are not reliably in the text layer:
+
+- Use PyMuPDF to check, per page, whether equation regions are images: `page.get_images()` and `page.get_drawings()` returning content in the band where a numbered equation should be, with little or no adjacent extracted text, is the tell.
+- Cross-check equation **labels**: if the prose references `Eq. (10)` / `Equation (10)` but no line of extracted text on that page parses as that equation, the equation is almost certainly a figure.
+- Treat any `□`/`�`/missing-glyph runs, or display lines that extract as empty/whitespace, as suspect.
+
+For every formal result whose statement or proof **depends on** such an equation, mark it explicitly so downstream skills know not to trust the transcribed formula:
+
+```
+**Formula fidelity**: UNVERIFIED — Eq. (10) and the L_i definition (Eq. 9) are
+typeset as figures; the transcription below is a guess. Any verdict that turns
+on the exact form of this equation MUST be re-checked by reading the PDF page
+as an image (Read the PDF with `pages: <n>`) before it is trusted.
+```
+
+Do **not** silently emit a transcription as if it were faithful. A wrong-but-plausible formula passed downstream is worse than an honest "could not read this — open page N."
+
 ## Inputs
 
 One of:
@@ -126,6 +151,7 @@ For each theorem-like environment:
 - **Type**: theorem | lemma | corollary | proposition | definition
 - **Label**: thm:foo (LaTeX) or "Theorem 3" (PDF)
 - **Statement**: <verbatim>
+- **Formula fidelity**: verified (LaTeX source) | text-extracted (plausible) | UNVERIFIED (equation typeset as figure — read PDF page N as image before trusting) — name the at-risk equation(s) and page
 - **Proof present**: yes | no | deferred_to_appendix | cited_to_prior_work
 - **Proof text**: <verbatim, if present>
 
@@ -175,6 +201,7 @@ Issues encountered during parsing — useful for the user to know which fidelity
 - "Multi-file project: 3 files resolved, 1 file (`extras.tex`) not found"
 - "Equation 5 contains a complex macro `\sched` that could not be expanded automatically"
 - "PDF extraction: theorem block at page 7 has unusual formatting; manually verify"
+- "PDF extraction: Eq. (9) and (10) on page 7 are typeset as figures — transcription is a guess, Formula fidelity = UNVERIFIED for Theorem 10 and Lemma 15; read page 7 as an image before trusting any floor/ceiling/±1 in those equations"
 - "No `.aux` file found at `paper.aux`; rendered page numbers omitted from label topology"
 - "`pymupdf4llm` is the preferred PDF extractor but is not installed; falling back to `pymupdf`. Install with `pip install pymupdf4llm` for better math/table fidelity." *(omit this warning entirely when `pymupdf4llm` is the active extractor)*
 ```

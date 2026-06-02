@@ -46,6 +46,14 @@ If any required input is missing, ask the user for it before proceeding.
 
 Work through these systematically. For each item, either record an issue or note that you positively verified the step.
 
+### Step 0 — Verify the governing formula against the source (do this first, for PDF input)
+
+You are about to scrutinize an inequality character-by-character. If that inequality reached you through lossy PDF text extraction, you may be auditing a formula the paper never printed. Before auditing the math:
+
+- If the result's **Formula fidelity** is `UNVERIFIED`, or the statement/proof hinges on an exact bound that came from a PDF (a rounding direction `⌈·⌉`/`⌊·⌋`, a `+1`, a `≤`/`<`, a sum's index set, a quantifier bound), **read the relevant PDF page as an image** (`Read` the PDF with `pages: <n>`) and re-transcribe the governing expression(s) yourself from the rendering.
+- Audit against the **image-verified** form, not the extracted text. If they differ, record the corrected formula prominently — an extraction discrepancy in a load-bearing equation is itself the most important finding, and it may flip the verdict in either direction.
+- If you genuinely cannot read the equation from the image either (truly illegible scan), say so and cap the audit at `uncertain` for extraction reasons. Do not audit a formula you have not actually seen.
+
 ### Logical validity
 - Does each step follow from the previous one? Are there non-sequiturs or gaps?
 - **Contradiction proofs**: is the negation correctly formed? Is the derived contradiction genuine, or merely a violation of an extra assumption?
