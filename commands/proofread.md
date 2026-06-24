@@ -145,8 +145,15 @@ Produce `proofreader-report/report.md` — the top-level summary that links to e
 
 - Paper scores: …
 - Formal results: <N total>, <K flagged>, <C confirmed flaws>
+- **Extraction basis**: latex_source | pdf_text_clean | **pdf_text_with_ocr** — when the input was a PDF and any equation had to be OCR'd from a page image, say so here and point to the OCR transcriptions section below.
 
 Stage outputs: [evaluation](evaluation.md) · [audits/](audits/) · [counterexamples/](counterexamples/) · [defenses/](defenses/) · [arbiters/](arbiters/) · [findings/](findings/)
+
+## OCR-based equations  *(include only when the input was a PDF and at least one equation was OCR'd; omit otherwise)*
+
+Any finding or cleared result whose math was OCR'd from the page image (because `pymupdf4llm` dropped or mangled the equation) is listed here with its OCR transcription record and `Human-check` line, consolidated from the evaluation and audit stages. This is the single place the author checks the OCR'd math against the published PDF.
+
+- **<Result label> — Eq. (N), page P**: `<verbatim OCR transcription>` · **Human-check**: <ambiguous characters, e.g. ceiling-vs-bracket on page P>. → audit: [audits/<label>.md](audits/<label>.md)
 
 ## Confirmed findings
 
@@ -172,6 +179,7 @@ For each result flagged in Stage 1 where Stage 2 found only proof-style/exposito
 ## Communication discipline
 
 - Announce each stage before starting it. Keep updates terse.
+- **PDF input**: ensure `prepare-paper-context` / `evaluate-paper` OCR'd any equation the parser dropped or mangled (Formula fidelity `ocr`). When the run rests on OCR'd math, set the report's Extraction basis to `pdf_text_with_ocr` and populate the OCR-based equations section so the author can spot-check the transcriptions. Never let a verdict on a load-bearing equation flow through on the parser's broken text.
 - If a stage produces zero candidates for the next stage, skip and say so.
 - If a subagent fails or returns an error, surface it; do not silently move on.
 - If the user's tool doesn't support subagents (Stages 3 and 4), warn the user that independence will be degraded and offer to run those stages inline with a clear `independence: degraded` flag in the report.

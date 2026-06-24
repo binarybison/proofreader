@@ -101,11 +101,11 @@ When you see one of these patterns, escalate the result's verdict to `uncertain`
 
 A verdict is only as trustworthy as the formula it rests on. Before you flag — or clear — any result whose correctness turns on the *exact* form of an equation (a rounding direction, a `±1`, a `≤`/`<`, a quantifier bound, the membership of an indexed set):
 
-1. Check the result's **Formula fidelity** marker from `prepare-paper-context`. If it is `UNVERIFIED` (equation typeset as a figure) or the equation looks notation-dense, do **not** trust the extracted text.
-2. **Read the PDF page as an image** (`Read` the PDF with `pages: <n>`) and transcribe the governing equation yourself, verbatim, from the rendering.
-3. State in the result's **Concern notes** that the formula was (or was not) image-verified, and which page.
+1. Check the result's **Formula fidelity** marker from `prepare-paper-context`. If it is `ocr`, an OCR transcription record already exists — use it, and verify its `Human-check` flags. If it is `UNVERIFIED` (equation typeset as a figure, or `OCR-failed`) or the equation looks notation-dense, do **not** trust the parser's extracted text.
+2. **OCR the equation**: `Read` the PDF page as an image (`pages: <n>`) and transcribe the governing equation yourself, verbatim, from the rendering. If no OCR transcription record exists yet for it, create one (verbatim transcription + a `Human-check` line naming each ambiguous character — schema in [`prepare-paper-context`](../prepare-paper-context/SKILL.md) Step 2c).
+3. State in the result's **Concern notes** that the formula was OCR'd (or text-extracted), which page, and reproduce the OCR transcription record so a human can spot-check it. Flag the canonical OCR confusions explicitly — e.g. a `⌈·⌉` ceiling that OCR might have read as a `[·]` bracket or `⌊·⌋` floor.
 
-If you cannot image-verify a load-bearing formula, cap the verdict at `uncertain` and say *why* (extraction, not substance) — never emit `correct`/`likely_correct`/`flawed` on a formula you only saw through lossy text extraction.
+If you cannot OCR a load-bearing formula (illegible scan), cap the verdict at `uncertain` and say *why* (extraction, not substance) — never emit `correct`/`likely_correct`/`flawed` on a formula you only saw through lossy text extraction.
 
 ## Output Format
 
@@ -116,6 +116,7 @@ Output a single Markdown document with these top-level sections:
 
 **Mode**: rigorous | adversarial
 **Reviewer confidence**: high | medium | low
+**Extraction basis** *(PDF input only)*: latex_source | pdf_text_clean | **pdf_text_with_ocr**  *(use `pdf_text_with_ocr` whenever any equation had to be OCR'd from the page image; the per-result OCR records below and the consolidated list in §5 show what the OCR read.)*
 
 ## 1. Overview
 
@@ -156,7 +157,15 @@ Output a single Markdown document with these top-level sections:
 **Completeness.** full | partial | sketch_only | deferred_to_appendix
 **Concern level.** none | minor | moderate | serious
 **Verdict.** correct | likely_correct | uncertain | likely_flawed | flawed
+**Formula basis.** latex_source | pdf_text | ocr  *(include only for PDF input; if `ocr`, reproduce the record below)*
 **Concern notes.** …
+
+**OCR record (if Formula basis is `ocr`).**
+> **OCR — Eq. (N), page P** *(parser: math-as-figure | glyph-mangled; transcribed from page image)*
+> ```
+> <verbatim OCR transcription>
+> ```
+> **Human-check**: <name each ambiguous character and the risk — e.g. "ceiling vs bracket on the `R_i/T_j` term">
 
 **Verbatim proof text.**
 > …
@@ -167,9 +176,13 @@ Output a single Markdown document with these top-level sections:
 ## 4. Recommended next steps
 
 For each result with verdict worse than `correct`, recommend whether to run `audit-proof` on it. Prioritize results whose failure would invalidate the paper's headline claim.
+
+## 5. OCR transcriptions  *(PDF input only; include this section whenever Extraction basis is `pdf_text_with_ocr`, otherwise omit)*
+
+Consolidated list of every equation that had to be OCR'd from the page image, with its transcription record and `Human-check` line, so the author can verify each one against the published PDF in one place. This is the human-checkable audit trail for the OCR'd math the verdicts above rest on.
 ```
 
-Section 4 is the action list the author should follow up on. Keep it short — one bullet per flagged result, ordered by importance.
+Section 4 is the action list the author should follow up on. Keep it short — one bullet per flagged result, ordered by importance. Section 5 exists only when OCR was used.
 
 ## Inputs
 

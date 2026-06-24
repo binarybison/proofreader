@@ -50,8 +50,10 @@ Work through these systematically. For each item, either record an issue or note
 
 You are about to scrutinize an inequality character-by-character. If that inequality reached you through lossy PDF text extraction, you may be auditing a formula the paper never printed. Before auditing the math:
 
-- If the result's **Formula fidelity** is `UNVERIFIED`, or the statement/proof hinges on an exact bound that came from a PDF (a rounding direction `⌈·⌉`/`⌊·⌋`, a `+1`, a `≤`/`<`, a sum's index set, a quantifier bound), **read the relevant PDF page as an image** (`Read` the PDF with `pages: <n>`) and re-transcribe the governing expression(s) yourself from the rendering.
-- Audit against the **image-verified** form, not the extracted text. If they differ, record the corrected formula prominently — an extraction discrepancy in a load-bearing equation is itself the most important finding, and it may flip the verdict in either direction.
+- **If `prepare-paper-context` already produced an OCR transcription record** for the governing equation (Formula fidelity `ocr`), audit against *that* transcription, and check its `Human-check` flags yourself by reading the page — the flagged characters (ceiling-vs-bracket, `≤`-vs-`<`, a `±1`) are exactly the ones that can flip your verdict.
+- **If no OCR record exists** and the result's **Formula fidelity** is `UNVERIFIED`, or the statement/proof hinges on an exact bound that came from a PDF (a rounding direction `⌈·⌉`/`⌊·⌋`, a `+1`, a `≤`/`<`, a sum's index set, a quantifier bound), **perform the OCR now**: `Read` the PDF with `pages: <n>`, re-transcribe the governing expression(s) yourself from the rendering, and produce an OCR transcription record (the schema is defined in [`prepare-paper-context`](../prepare-paper-context/SKILL.md) Step 2c — verbatim transcription plus a mandatory `Human-check` line naming each ambiguous character).
+- Audit against the **OCR/image-verified** form, not the parser's extracted text. If they differ, record the corrected formula prominently — an extraction discrepancy in a load-bearing equation is itself the most important finding, and it may flip the verdict in either direction.
+- **Carry the OCR record into your output.** Any verdict that rests on an OCR'd equation must say so and reproduce the record (see the `OCR-based equations` block in Output Format) so the human reviewer can check the transcription against the paper. The example failure to watch for: OCR reading a `⌈·⌉` ceiling as a `[·]` bracket — a single such character can manufacture or hide a flaw.
 - If you genuinely cannot read the equation from the image either (truly illegible scan), say so and cap the audit at `uncertain` for extraction reasons. Do not audit a formula you have not actually seen.
 
 ### Logical validity
@@ -257,6 +259,7 @@ Produce a Markdown report:
 **Mode**: rigorous | adversarial
 **Verdict**: correct | likely_correct | uncertain | likely_flawed | flawed
 **Confidence**: high | medium | low
+**Formula basis**: latex_source | pdf_text | **ocr** | mixed  *(PDF input: was the audited math read from the text layer, or OCR'd from the page image? If `ocr` or `mixed`, the OCR-based equations block below is required.)*
 
 **Result truth**: true | likely_true | uncertain | likely_false | false
 **Proof soundness**: sound | mostly_sound | unsound | unsound_but_recoverable
@@ -265,7 +268,19 @@ Produce a Markdown report:
 
 ## Summary
 
-1–3 sentence overall assessment. State the bottom line in two parts: (a) is the result likely true? (b) does the proof actually establish it? If these answers diverge (true result, unsound proof), call that out explicitly — it changes the recommended fix from "retract the result" to "rewrite the proof".
+1–3 sentence overall assessment. State the bottom line in two parts: (a) is the result likely true? (b) does the proof actually establish it? If these answers diverge (true result, unsound proof), call that out explicitly — it changes the recommended fix from "retract the result" to "rewrite the proof". **If any audited equation was OCR'd from the PDF image, say so here in one sentence** — the reader must know the math underlying this verdict came from OCR, not the text layer.
+
+## OCR-based equations  *(include this section ONLY when Formula basis is `ocr` or `mixed`; omit entirely otherwise)*
+
+Reproduce the OCR transcription record for every equation this audit relied on that was read from the page image rather than the text layer. This lets the reviewer check the transcription against the published paper before trusting the verdict — OCR confuses *plausible* characters (a `⌈·⌉` ceiling read as a `[·]` bracket or `⌊·⌋` floor, a `≤` read as `<`, a dropped `+1`), and a single such error can change the audit's conclusion.
+
+> **OCR — Eq. (10), page 7** *(parser: math-as-figure; transcribed from page image)*
+> ```
+> R_i = C_i + \sum_{j \in hp(i)} \left\lceil \frac{R_i}{T_j} \right\rceil C_j
+> ```
+> **Human-check**: verify the two `\lceil … \rceil` are ceilings (not brackets/floors) on page 7 — the verdict below turns on the rounding direction.
+
+If a verdict in this audit *depends on* a flagged character, restate that dependency explicitly: e.g. *"This `likely_flawed` verdict holds only if the operator on page 7 is a floor `⌊·⌋`; if OCR misread a ceiling as a floor, the bound is safe and the result is `correct`. Human reviewer must confirm."*
 
 ## Issues
 

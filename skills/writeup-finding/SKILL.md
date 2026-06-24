@@ -41,6 +41,7 @@ Optional but improves output:
 3. **Counterexample** — output of `find-counterexample`, including parameters, paper-vs-correct result, and verification method.
 4. **Stress-test verdict** — output of `stress-test-defense`, including any defense considerations and the arbiter's verdict.
 5. **Paper bibliography entry** — for the `\cite{}` reference.
+6. **OCR transcription record(s)** — if the upstream audit's Formula basis was `ocr`, the record(s) for the equation(s) the finding depends on, so the brief can disclose and reproduce them (see Honesty discipline).
 
 ## Document Structure
 
@@ -135,6 +136,7 @@ Use standard CommonMark. Use `$...$` for inline math and `$$...$$` for display m
 - If the stress-test arbiter's verdict was `likely_false_positive` or `inconclusive`, **say so** in the overview. Don't write the brief as if the issue is confirmed when it isn't. The brief's job is to be a faithful record, not advocacy.
 - Distinguish "I verified this" from "I have not yet verified this". If a defense argument cites an appendix you couldn't retrieve, note that explicitly: *"resolution depends on contents of Appendix A, not yet retrieved"*.
 - Quantitative severity should be a *number* when possible. *"Bound is unsafe by approximately 0.05 in utilization"* is better than *"bound is unsafe"*.
+- **Disclose OCR-based math.** If the finding rests on an equation that was OCR'd from a PDF page image rather than read from the text layer (Formula basis `ocr` in the upstream audit), say so where the equation is first presented, and reproduce the OCR transcription record — verbatim transcription plus its `Human-check` line — so the reader can verify it against the published paper. A finding that depends on a *flagged* OCR character (e.g. ceiling-vs-bracket, `≤`-vs-`<`, a `±1`) must state that dependency: *"This finding holds if the operator in Eq. (10) is a floor `⌊·⌋`; OCR may have misread a ceiling. The reader should confirm against page 7 before acting on this."* Do not present an OCR'd formula as if it were verbatim from the source.
 
 ## Output
 

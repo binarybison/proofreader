@@ -38,26 +38,40 @@ Downstream skills will treat extraction warnings as a signal to scrutinize affec
 
 The worst extraction errors are not the *obviously* mangled ones (`Σ Ci /Ti`) — those get flagged and scrutinized. The dangerous ones are extractions that come out **clean-looking but wrong**: a `⌈·⌉` ceiling read as a `⌊·⌋` floor, a dropped `+1`, a `≤` read as `<`, a flipped subscript range, a quantifier `∀ℓ>1` read as `∀ℓ>0`. These read as valid math, pass downstream unquestioned, and can manufacture a confident false finding (or hide a real one) because a *single character* in a load-bearing inequality changed.
 
-**Equations and proofs typeset as figures/images are the highest-risk source.** Many RT-systems papers render display equations (and sometimes whole proofs) as embedded images. Text extraction either drops these entirely or returns an OCR-style guess that *looks* like a transcription but was never in the text layer. The reader cannot tell a faithful transcription from a fabricated one.
+**Equations and proofs typeset as figures/images are the highest-risk source.** Many RT-systems papers render display equations (and sometimes whole proofs) as embedded images. Text extraction either drops these entirely or returns an OCR-style guess that *looks* like a transcription but was never in the text layer. The reader cannot tell a faithful transcription from a fabricated one. The discipline here is **not** to pass the parser's broken output downstream — it is to *OCR the equation yourself from the page image* and record exactly what the OCR read so a human can spot-check it.
 
-#### Step 2c (PDF only): detect math-as-figure regions
+#### Step 2c (PDF only): detect equations the parser missed, then OCR them
 
-While extracting, identify equations that are not reliably in the text layer:
+`pymupdf4llm` (and the fallback extractors) silently mishandle two kinds of equations. Both must be caught and re-read here:
+
+- **Math-as-figure** — display equations (and sometimes whole proofs) rendered as embedded images. Text extraction drops them or emits an unrelated guess.
+- **Glyph-mangled** — equations that *are* in the text layer but extract with corrupted symbols: `Σ Ci /Ti`, `□`/`�`/missing-glyph runs, ceilings flattened to brackets, dropped sub/superscripts, collapsed fractions.
+
+**Step 2c.1 — Detect the regions the parser failed on:**
 
 - Use PyMuPDF to check, per page, whether equation regions are images: `page.get_images()` and `page.get_drawings()` returning content in the band where a numbered equation should be, with little or no adjacent extracted text, is the tell.
 - Cross-check equation **labels**: if the prose references `Eq. (10)` / `Equation (10)` but no line of extracted text on that page parses as that equation, the equation is almost certainly a figure.
 - Treat any `□`/`�`/missing-glyph runs, or display lines that extract as empty/whitespace, as suspect.
 
-For every formal result whose statement or proof **depends on** such an equation, mark it explicitly so downstream skills know not to trust the transcribed formula:
+**Step 2c.2 — OCR every equation the parser missed or mangled.** For each suspect equation:
 
-```
-**Formula fidelity**: UNVERIFIED — Eq. (10) and the L_i definition (Eq. 9) are
-typeset as figures; the transcription below is a guess. Any verdict that turns
-on the exact form of this equation MUST be re-checked by reading the PDF page
-as an image (Read the PDF with `pages: <n>`) before it is trusted.
-```
+1. **Read the PDF page as an image** — `Read` the PDF with `pages: <n>` — so the model sees the typeset equation directly. This vision pass *is* the OCR step. Do not skip it, and do not pass the parser's broken text downstream as if it were the equation.
+2. **Transcribe the equation verbatim** from the rendering into LaTeX (or Unicode if LaTeX is impractical), preserving exactly: rounding operators (`⌈·⌉` vs `⌊·⌋` vs plain brackets `[·]`), relational operators (`≤` vs `<` vs `=`), `±1` and additive constant terms, subscript/superscript ranges, and sum/product index sets.
+3. **Record an OCR transcription record** (schema below), flagging every character you are *not* fully confident about so a human can spot-check it against the published page.
 
-Do **not** silently emit a transcription as if it were faithful. A wrong-but-plausible formula passed downstream is worse than an honest "could not read this — open page N."
+##### OCR transcription record
+
+Math OCR is itself error-prone, and its mistakes are *plausible*: a `⌈·⌉` ceiling read as a bracket `[·]` or floor `⌊·⌋`, a `≤` read as `<`, a dropped `+1`, a flipped subscript range, a `∑` upper limit misread. The reader cannot distinguish a faithful OCR from a confident-but-wrong one unless you tell them what to check. So **every OCR'd equation gets a record of this exact form** — this is the canonical block that all downstream report skills reproduce:
+
+> **OCR — Eq. (10), page 7** *(parser: math-as-figure; transcribed from page image)*
+> ```
+> L_i = C_i + \sum_{j \in hp(i)} \left\lceil \frac{R_i}{T_j} \right\rceil C_j
+> ```
+> **Human-check**: the two `\lceil … \rceil` were rendered tightly and could be brackets `[ ]` or floors `⌊ ⌋` in the original — **verify the rounding direction on page 7**. `hp(i)` index set assumed to be higher-priority tasks; confirm against the page.
+
+The `Human-check` line is mandatory whenever any character is ambiguous, and must name the *specific* character and the *specific* risk (e.g. "ceiling vs bracket", "≤ vs <", "is the trailing `+1` present?"). If the OCR is unambiguous, still emit the record but write `**Human-check**: none — all symbols rendered clearly.`
+
+If you genuinely cannot read the equation from the image (truly illegible scan), say so — **do not invent a transcription.** Mark the equation `OCR-failed` in its record and cap any dependent result at `uncertain` for extraction reasons. A wrong-but-plausible formula passed downstream is worse than an honest "could not read this — open page N."
 
 ## Inputs
 
@@ -151,7 +165,7 @@ For each theorem-like environment:
 - **Type**: theorem | lemma | corollary | proposition | definition
 - **Label**: thm:foo (LaTeX) or "Theorem 3" (PDF)
 - **Statement**: <verbatim>
-- **Formula fidelity**: verified (LaTeX source) | text-extracted (plausible) | UNVERIFIED (equation typeset as figure — read PDF page N as image before trusting) — name the at-risk equation(s) and page
+- **Formula fidelity**: verified (LaTeX source) | text-extracted (plausible) | ocr (equation was missed/mangled by the parser and transcribed from the page image — see OCR record, human-check the flagged characters) | UNVERIFIED (equation could not be OCR'd / `OCR-failed` — read PDF page N before trusting) — name the at-risk equation(s), the page, and link the OCR record
 - **Proof present**: yes | no | deferred_to_appendix | cited_to_prior_work
 - **Proof text**: <verbatim, if present>
 
@@ -195,13 +209,24 @@ Restatements are the high-leverage targets for cross-paper verification: a paper
 
 If the paper has an explicit notation table, extract verbatim. Otherwise, infer from theorem statements and provide a best-effort table.
 
+## OCR transcriptions  *(PDF inputs only; omit this section entirely for LaTeX/text inputs, and omit it for PDFs where the parser handled every equation cleanly)*
+
+One OCR transcription record (see Step 2c) for every equation the parser missed or mangled and that you re-read from the page image. List them in equation-number order. Each record names the equation, the page, the parser failure mode, the verbatim transcription, and a mandatory `Human-check` line. Downstream report skills copy the relevant records into their own output verbatim so the human reviewer always sees what the OCR read.
+
+> **OCR — Eq. (9), page 7** *(parser: math-as-figure; transcribed from page image)*
+> ```
+> R_i = C_i + \sum_{j \in hp(i)} \left\lceil \frac{R_i}{T_j} \right\rceil C_j
+> ```
+> **Human-check**: `\lceil … \rceil` could be brackets/floors in the original — verify the rounding direction on page 7.
+
 ## Extraction warnings
 
 Issues encountered during parsing — useful for the user to know which fidelity to trust:
 - "Multi-file project: 3 files resolved, 1 file (`extras.tex`) not found"
 - "Equation 5 contains a complex macro `\sched` that could not be expanded automatically"
 - "PDF extraction: theorem block at page 7 has unusual formatting; manually verify"
-- "PDF extraction: Eq. (9) and (10) on page 7 are typeset as figures — transcription is a guess, Formula fidelity = UNVERIFIED for Theorem 10 and Lemma 15; read page 7 as an image before trusting any floor/ceiling/±1 in those equations"
+- "PDF extraction: Eq. (9) and (10) on page 7 are typeset as figures — re-read from the page image and OCR'd (Formula fidelity = ocr for Theorem 10 and Lemma 15); see OCR transcriptions section, human-check the flagged ceiling/bracket on page 7"
+- "PDF extraction: Eq. (12) on page 9 is an illegible low-resolution scan — OCR-failed; Theorem 12 capped at uncertain for extraction reasons"
 - "No `.aux` file found at `paper.aux`; rendered page numbers omitted from label topology"
 - "`pymupdf4llm` is the preferred PDF extractor but is not installed; falling back to `pymupdf`. Install with `pip install pymupdf4llm` for better math/table fidelity." *(omit this warning entirely when `pymupdf4llm` is the active extractor)*
 ```
@@ -226,5 +251,6 @@ Downstream skills should accept either a path to a paper or a pre-prepared conte
 
 - `pymupdf4llm` is preferred for PDF extraction because it preserves Markdown-like structure (headings, lists, tables). Falls back to `pymupdf` if `pymupdf4llm` isn't installed; falls back to `pdftotext` from poppler-utils if neither is available. Install the preferred extractor with `pip install pymupdf4llm`.
 - Always report the active extractor in the output's `**PDF extractor**` field, and surface a clear extraction warning when falling back so the user knows to install `pymupdf4llm` for higher fidelity.
-- LaTeX extraction is straight text processing — no external tools required.
+- **OCR for missed equations is mandatory in PDF mode, not optional.** When `pymupdf4llm` drops or mangles an equation (math-as-figure or glyph corruption), re-read the page image with `Read` (`pages: <n>`) and transcribe the equation yourself. The model's vision pass is the OCR engine; no separate OCR binary is required. Record every such equation as an OCR transcription record with a `Human-check` line. Never let the parser's broken text for a load-bearing equation flow downstream unverified.
+- LaTeX extraction is straight text processing — no external tools required (and no OCR needed: math symbols are exact in the source).
 - Multi-file project resolution uses simple text substitution; doesn't run `pdflatex`. If a `.aux` file is present, you may consult it for label/page-number mapping but it's not required.
